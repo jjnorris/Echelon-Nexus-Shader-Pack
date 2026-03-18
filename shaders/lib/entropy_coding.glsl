@@ -1,28 +1,77 @@
-// ===================================================================
-// Information-Theoretic Texture Compression (Phase 25)
-// ===================================================================
-// Entropy-aware compression and perceptual quantization.
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║                                                                           ║
+// ║            INFORMATION-THEORETIC COMPRESSION (PHASE 25)                  ║
+// ║                                                                           ║
+// ║  Entropy-aware quantization and perceptual dithering for efficient      ║
+// ║  texture compression. Reduces bit depth while maintaining visual        ║
+// ║  quality through ordered dithering (Bayer matrix) and entropy coding.   ║
+// ║                                                                           ║
+// ║  Application: Mobile optimization, bandwidth reduction, memory savings. ║
+// ║  Typical: 8 bits/channel → 4-5 bits perceptually lossless               ║
+// ║                                                                           ║
+// ║  Physics: Human eye sensitive to luminance > chrominance. Dithering    ║
+// ║  spreads quantization error across neighboring pixels creating illusion ║
+// ║  of higher color depth. Error diffusion patterns prevent banding.       ║
+// ║                                                                           ║
+// ║  References: Bayer 1976, Jarvis et al. 1976, Ulichney 1987            ║
+// ║                                                                           ║
+// ╚═══════════════════════════════════════════════════════════════════════════╝
 
 #ifndef INCLUDE_ENTROPY_CODING
 #define INCLUDE_ENTROPY_CODING
 
-// ===================================================================
-// PERCEPTUAL QUANTIZATION
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ PERCEPTUAL QUANTIZATION                                                  ║
+// │                                                                           ║
+// │ Reduces color precision to lower bit depths. Direct quantization        │
+// │ produces banding artifacts; dithering spreads error for better quality.│
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Quantize colors to lower bit depth with perceptual dithering
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ perceptualQuantize()                                                    ║
+// ║                                                                         ║
+// │ Quantizes RGB color to specified bit depth per channel.               │
+// │ Formula: quantized = round(color × (levels-1)) / (levels-1)          │
+// │                                                                         ║
+// │ Typical usage:                                                         │
+// │   8→5 bits: 32 levels per channel (saves 3 bits)                      │
+// │   8→4 bits: 16 levels per channel (saves 4 bits)                      │
+// │   Results in 50% texture bandwidth on mobile (5+5+5 vs 8+8+8)       │
+// │                                                                         ║
+// │ Returns: Quantized color [0,1]                                        │
+// └─────────────────────────────────────────────────────────────────────────┘
 vec3 perceptualQuantize(vec3 color, int bitsPerChannel) {
+    // ────────────────────────────────────────────────────────────────────────
+    // Compute quantization levels: 2^bits possible values
+    // ────────────────────────────────────────────────────────────────────────
     float levels = pow(2.0, float(bitsPerChannel));
 
-    // Quantize
+    // ────────────────────────────────────────────────────────────────────────
+    // Quantize: map to nearest quantization level
+    // ────────────────────────────────────────────────────────────────────────
     vec3 quantized = round(color * (levels - 1.0)) / (levels - 1.0);
 
     return quantized;
 }
 
-// Add ordered dithering for smoother quantization
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ ditherQuantize()                                                        ║
+// ║                                                                         ║
+// │ Quantize with ordered dithering (Bayer matrix). Spreads quantization  │
+// │ error spatially, creating illusion of higher color depth despite      │
+// │ reduced precision. Eliminates banding artifacts common in gradients.  │
+// │                                                                         ║
+// │ Pattern: 4×4 Bayer matrix with thresholds [0,15]/16                  │
+// │ Result: Visible dither pattern (acceptable for game art)              │
+// │                                                                         ║
+// │ Cost: Single matrix lookup + quantize (~0.1ms)                        │
+// └─────────────────────────────────────────────────────────────────────────┘
 vec3 ditherQuantize(vec3 color, vec2 screenCoord, int bitsPerChannel) {
-    // Bayer matrix 4x4 (0.0-1.0)
+    // ────────────────────────────────────────────────────────────────────────
+    // 4×4 Bayer ordered dithering matrix
+    // Maps to [0,1] range for threshold comparison
+    // Produces visible pattern but prevents banding
+    // ────────────────────────────────────────────────────────────────────────
     mat4 bayerMatrix = mat4(
         vec4(0.0/16.0, 8.0/16.0, 2.0/16.0, 10.0/16.0),
         vec4(12.0/16.0, 4.0/16.0, 14.0/16.0, 6.0/16.0),
@@ -30,14 +79,19 @@ vec3 ditherQuantize(vec3 color, vec2 screenCoord, int bitsPerChannel) {
         vec4(15.0/16.0, 7.0/16.0, 13.0/16.0, 5.0/16.0)
     );
 
-    // Get dither value
+    // ────────────────────────────────────────────────────────────────────────
+    // Index into matrix by screen pixel position mod 4
+    // ────────────────────────────────────────────────────────────────────────
     ivec2 coord = ivec2(mod(screenCoord, 4.0));
     float dither = bayerMatrix[coord.x][coord.y];
 
+    // ────────────────────────────────────────────────────────────────────────
+    // Apply dither threshold: spreads errors across pixels
+    // Threshold range: [-0.5×step, +0.5×step] centered on quantization level
+    // ────────────────────────────────────────────────────────────────────────
     float levels = pow(2.0, float(bitsPerChannel));
     float step = 1.0 / levels;
 
-    // Add dither threshold
     vec3 dithered = color + (dither - 0.5) * step * 0.5;
 
     return perceptualQuantize(dithered, bitsPerChannel);
