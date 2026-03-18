@@ -1,86 +1,204 @@
-// ===================================================================
-// Advanced Sampling Techniques - Importance & Variance Reduction
-// ===================================================================
-// Implements importance-weighted sampling, multiple importance sampling (MIS),
-// and filter reconstruction for TAA history blending.
-//
-// References:
-//   - Importance Sampling for Production Rendering (Pharr et al., 2016)
-//   - Temporal Reprojection Anti-Aliasing (Lottes, 2016)
-//   - Filtering Distributions of Normals (Yan et al., 2016)
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║                                                                           ║
+// ║                  ADVANCED SAMPLING & RECONSTRUCTION FILTERS              ║
+// ║                                                                           ║
+// ║  Importance-weighted sampling strategies, reconstruction filters,       ║
+// ║  and history blending for temporal anti-aliasing (TAA) and Monte       ║
+// ║  Carlo sampling tasks. Implements techniques from Pharr et al. (2016)  ║
+// ║  and Lottes (2016).                                                    ║
+// ║                                                                           ║
+// ║  Phase: 15 (Core sampling enhancement)                                 ║
+// ║  Research: Pharr et al. (2016), Lottes (2016)                          ║
+// ║                                                                           ║
+// ╚═══════════════════════════════════════════════════════════════════════════╝
 
 #ifndef INCLUDE_ADVANCED_SAMPLING
 #define INCLUDE_ADVANCED_SAMPLING
 
 #include "halton_sequence.glsl"
 
-// ===================================================================
-// RECONSTRUCTION FILTERS FOR TAA
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ RECONSTRUCTION FILTERS FOR TAA                                           ║
+// ║                                                                           ║
+// │ Implements multiple filter kernels for TAA history blending.            │
+// │ Each filter trades off sharpness, ghosting, and quality differently.   │
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Box filter (1.0 in [-0.5, 0.5], 0 elsewhere)
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ filterBox()                                                             ║
+// ║                                                                         ║
+// │ Box filter (nearest neighbor). Simplest reconstruction kernel.         │
+// │ Returns 1.0 inside [-0.5, 0.5] box, 0 elsewhere.                      │
+// │                                                                         ║
+// │ Characteristics:                                                        ║
+// │   - Fastest evaluation                                                 ║
+// │   - Sharpest, most aliasing artifacts                                  ║
+// │   - Good for UI elements and debug views                               ║
+// │                                                                         ║
+// │ Parameters:                                                            ║
+// │   offset  - Distance from filter center                               ║
+// │                                                                         ║
+// │ Returns: Filter weight [0, 1]                                         │
+// └─────────────────────────────────────────────────────────────────────────┘
 float filterBox(vec2 offset) {
     if (abs(offset.x) <= 0.5 && abs(offset.y) <= 0.5) return 1.0;
     return 0.0;
 }
 
-// Tent/Linear filter (triangular falloff)
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ filterTent()                                                            ║
+// ║                                                                         ║
+// │ Tent/linear filter. Triangular falloff from center.                   │
+// │ Creates smooth weight interpolation across neighboring pixels.        │
+// │                                                                         ║
+// │ Characteristics:                                                        ║
+// │   - Linear interpolation between samples                               ║
+// │   - Good temporal stability                                            ║
+// │   - Moderate blur, minimal ghosting                                    ║
+// │   - Standard choice for TAA                                            ║
+// │                                                                         ║
+// │ Parameters:                                                            ║
+// │   offset  - Distance from filter center                               ║
+// │                                                                         ║
+// │ Returns: Filter weight [0, 1]                                         │
+// └─────────────────────────────────────────────────────────────────────────┘
 float filterTent(vec2 offset) {
     float x = max(1.0 - abs(offset.x), 0.0);
     float y = max(1.0 - abs(offset.y), 0.0);
     return x * y;
 }
 
-// Lanczos filter (sinc-based, reduces ringing vs linear)
-// Support: 2 pixels in each direction
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ filterLanczos()                                                         ║
+// ║                                                                         ║
+// │ Lanczos filter (sinc-based, windowed). Professional-quality filter.   │
+// │ Minimizes ringing artifacts while maintaining sharpness.              │
+// │                                                                         ║
+// │ Characteristics:                                                        ║
+// │   - Sinc-based reconstruction (theoretically optimal)                  │
+// │   - 2-pixel support in each direction                                  ║
+// │   - Better frequency response than tent                                ║
+// │   - Reduces ringing compared to unwindowed sinc                        ║
+// │   - Good for high-quality final reconstruction                         ║
+// │                                                                         ║
+// │ Parameters:                                                            ║
+// │   offset  - Distance from filter center                               ║
+// │                                                                         ║
+// │ Returns: Filter weight [0, 1]                                         │
+// └─────────────────────────────────────────────────────────────────────────┘
 float filterLanczos(vec2 offset) {
     const float pi = 3.14159265359;
 
+    // ────────────────────────────────────────────────────────────────────────
+    // Outside support region (2 pixels), weight is zero
+    // ────────────────────────────────────────────────────────────────────────
     if (length(offset) > 2.0) return 0.0;
 
-    // sinc(x) = sin(pi*x) / (pi*x)
+    // ────────────────────────────────────────────────────────────────────────
+    // Compute sinc(x) = sin(πx) / (πx) for X and Y independently
+    // Handle singularity at x=0 where sinc(0) = 1
+    // ────────────────────────────────────────────────────────────────────────
     float sincX = (abs(offset.x) < 0.001) ? 1.0 : sin(pi * offset.x) / (pi * offset.x);
     float sincY = (abs(offset.y) < 0.001) ? 1.0 : sin(pi * offset.y) / (pi * offset.y);
 
-    // window(x) = sinc(x/2)
+    // ────────────────────────────────────────────────────────────────────────
+    // Apply Hann window: window(x) = sinc(x/2)
+    // Windowing reduces ringing artifacts near support edges
+    // ────────────────────────────────────────────────────────────────────────
     float windowX = (abs(offset.x) < 0.001) ? 1.0 : sin(pi * offset.x * 0.5) / (pi * offset.x * 0.5);
     float windowY = (abs(offset.y) < 0.001) ? 1.0 : sin(pi * offset.y * 0.5) / (pi * offset.y * 0.5);
 
     return sincX * sincY * windowX * windowY;
 }
 
-// Catmull-Rom filter (smooth cubic spline)
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ filterCatmullRom()                                                      ║
+// ║                                                                         ║
+// │ Catmull-Rom cubic spline filter. Smooth, continuous reconstruction.   │
+// │ Popular for image upscaling and temporal filtering.                   │
+// │                                                                         ║
+// │ Characteristics:                                                        ║
+// │   - Smooth cubic polynomial interpolation                              ║
+// │   - 2-pixel support radius                                             ║
+// │   - Better than linear, simpler than Lanczos                          ║
+// │   - Good for real-time applications                                    ║
+// │   - Moderate sharpness and stability                                   ║
+// │                                                                         ║
+// │ Parameters:                                                            ║
+// │   offset  - Distance from filter center                               ║
+// │                                                                         ║
+// │ Returns: Filter weight [0, 1]                                         │
+// └─────────────────────────────────────────────────────────────────────────┘
 float filterCatmullRom(vec2 offset) {
     float x = filterCatmullRom1D(offset.x);
     float y = filterCatmullRom1D(offset.y);
     return x * y;
 }
 
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ filterCatmullRom1D()                                                    ║
+// ║                                                                         ║
+// │ 1D Catmull-Rom cubic spline filter kernel.                            │
+// │ Computed piecewise as cubic polynomials within [-2, 2] range.        │
+// │                                                                         ║
+// │ Parameters:                                                            ║
+// │   x  - Distance from center (normalized)                              ║
+// │                                                                         ║
+// │ Returns: Filter weight [0, 1]                                         │
+// └─────────────────────────────────────────────────────────────────────────┘
 float filterCatmullRom1D(float x) {
     float ax = abs(x);
 
+    // ────────────────────────────────────────────────────────────────────────
+    // Inner region [0, 1]: smooth interpolation
+    // ────────────────────────────────────────────────────────────────────────
     if (ax < 1.0) {
         return 1.0 - 2.0 * ax * ax + ax * ax * ax;
-    } else if (ax < 2.0) {
+    }
+    // ────────────────────────────────────────────────────────────────────────
+    // Outer region [1, 2]: cubic falloff to zero
+    // ────────────────────────────────────────────────────────────────────────
+    else if (ax < 2.0) {
         return -4.0 + 8.0 * ax - 5.0 * ax * ax + ax * ax * ax;
     }
 
     return 0.0;
 }
 
-// ===================================================================
-// SAMPLE WEIGHTING & HISTORY BLENDING
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ SAMPLE WEIGHTING & HISTORY BLENDING                                      ║
+// ║                                                                           ║
+// │ Determines how strongly to blend current frame with historical data.   │
+// │ Confidence-aware weighting reduces ghosting and temporal artifacts.    │
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Estimate sample confidence based on neighborhood variance
-// High variance regions -> lower history blend to reduce ghosting
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ estimateSampleConfidence()                                              ║
+// ║                                                                         ║
+// │ Estimates how confident we should be in current sample vs history.    │
+// │ Based on neighborhood variance - high variance = lower confidence.    │
+// │                                                                         ║
+// │ Parameters:                                                            ║
+// │   sample     - Current frame's sampled value                          │
+// │   neighbors  - Array of 8 neighboring pixel values                    │
+// │                                                                         ║
+// │ Returns: Confidence weight [0, 1] for current sample                  │
+// │           1.0 = fully trust current, 0.0 = use only history         │
+// └─────────────────────────────────────────────────────────────────────────┘
 float estimateSampleConfidence(vec3 sample, vec3 neighbors[8]) {
+    // ────────────────────────────────────────────────────────────────────────
+    // Compute mean of neighborhood for variance calculation
+    // ────────────────────────────────────────────────────────────────────────
     vec3 meanNeighbor = vec3(0.0);
     for (int i = 0; i < 8; i++) {
         meanNeighbor += neighbors[i];
     }
     meanNeighbor /= 8.0;
 
+    // ────────────────────────────────────────────────────────────────────────
+    // Compute variance across neighbors
+    // High variance = unstable region = lower confidence
+    // ────────────────────────────────────────────────────────────────────────
     float variance = 0.0;
     for (int i = 0; i < 8; i++) {
         vec3 diff = neighbors[i] - meanNeighbor;
@@ -88,13 +206,31 @@ float estimateSampleConfidence(vec3 sample, vec3 neighbors[8]) {
     }
     variance /= 8.0;
 
-    // Confidence = 1 / (1 + variance) - high variance = low confidence
+    // ────────────────────────────────────────────────────────────────────────
+    // Confidence = 1 / (1 + variance)
+    // Squared for smoother falloff in high-variance regions
+    // ────────────────────────────────────────────────────────────────────────
     float confidence = 1.0 / (1.0 + sqrt(variance));
     return confidence;
 }
 
-// Clamp history to neighborhood bounds (reduce ghosting)
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ clampToNeighborhood()                                                   ║
+// ║                                                                         ║
+// │ Clamps history value to neighborhood bounding box.                    │
+// │ Prevents ghosting artifacts from disocclusions and motion.            │
+// │                                                                         ║
+// │ Parameters:                                                            ║
+// │   history    - Color value from previous frame                        │
+// │   neighbors  - Array of 8 neighboring pixel values                    │
+// │   strength   - How aggressively to clamp (0-1)                        │
+// │                                                                         ║
+// │ Returns: Clamped history value within neighborhood bounds             │
+// └─────────────────────────────────────────────────────────────────────────┘
 vec3 clampToNeighborhood(vec3 history, vec3 neighbors[8], float strength) {
+    // ────────────────────────────────────────────────────────────────────────
+    // Find min/max bounds of neighborhood colors
+    // ────────────────────────────────────────────────────────────────────────
     vec3 minNeighbor = neighbors[0];
     vec3 maxNeighbor = neighbors[0];
 
@@ -103,102 +239,105 @@ vec3 clampToNeighborhood(vec3 history, vec3 neighbors[8], float strength) {
         maxNeighbor = max(maxNeighbor, neighbors[i]);
     }
 
-    // Expand bounds by strength for temporal stability
+    // ────────────────────────────────────────────────────────────────────────
+    // Expand bounds by strength factor to reduce aggressive clamping
+    // Prevents over-darkening from over-conservative bounds
+    // ────────────────────────────────────────────────────────────────────────
     vec3 center = (minNeighbor + maxNeighbor) * 0.5;
     vec3 extent = (maxNeighbor - minNeighbor) * (0.5 * strength);
 
     return clamp(history, center - extent, center + extent);
 }
 
-// ===================================================================
-// IMPORTANCE-WEIGHTED TAA BLENDING
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ IMPORTANCE-WEIGHTED TAA BLENDING                                         ║
+// ║                                                                           ║
+// │ Computes optimal blend factor using importance-weighted theory.        │
+// │ Balances current frame quality with temporal stability.               │
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Compute optimal blend factor using importance-weighted history
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ computeOptimalBlendFactor()                                             ║
+// ║                                                                         ║
+// │ Computes Bayesian-optimal blend factor for TAA history blending.      │
+// │                                                                         ║
+// │ Parameters:                                                            ║
+// │   current            - Current frame color                            │
+// │   history            - Previous frame accumulated color               │
+// │   sampleWeight       - Importance weight of current sample             │
+// │   historyWeight      - Accumulated weight of history                   │
+// │   adaptivity         - How adaptive blending should be (0-1)          │
+// │                                                                         ║
+// │ Returns: Optimal blend factor [0.1, 0.95]                            │
+// │          0.1 = mostly history, 0.95 = mostly current                 │
+// └─────────────────────────────────────────────────────────────────────────┘
 float computeOptimalBlendFactor(
     vec3 current,
     vec3 history,
-    float sampleWeight,    // Importance weight of current sample
-    float historyWeight,   // Weight of accumulated history
-    float adaptivity       // How adaptive the blending should be (0-1)
+    float sampleWeight,
+    float historyWeight,
+    float adaptivity
 ) {
-    // Bayesian optimal blend:
-    // blend = historyWeight / (historyWeight + sampleWeight)
+    // ────────────────────────────────────────────────────────────────────────
+    // Bayesian optimal blend: blend = historyWeight / (historyWeight + sampleWeight)
+    // Mathematically derived for minimum variance
+    // ────────────────────────────────────────────────────────────────────────
     float baseBlend = historyWeight / (historyWeight + sampleWeight);
 
-    // Modulate by sample weight confidence
+    // ────────────────────────────────────────────────────────────────────────
+    // Modulate by sample confidence for adaptive response
+    // Higher confidence in current sample = faster blending
+    // ────────────────────────────────────────────────────────────────────────
     float confidence = clamp(sampleWeight, 0.0, 1.0);
     float adaptiveBlend = mix(0.5, baseBlend, adaptivity * confidence);
 
-    return clamp(adaptiveBlend, 0.1, 0.95); // Clamp to sensible range
+    // ────────────────────────────────────────────────────────────────────────
+    // Clamp to sensible range to prevent extreme behavior
+    // Too low = ghosting, too high = flickering
+    // ────────────────────────────────────────────────────────────────────────
+    return clamp(adaptiveBlend, 0.1, 0.95);
 }
 
-// ===================================================================
-// SAMPLING PATTERN ANALYSIS
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ MULTIPLE IMPORTANCE SAMPLING (MIS)                                       ║
+// ║                                                                           ║
+// │ Combines samples from multiple distributions for reduced variance.    │
+// │ Used in hybrid indirect lighting and complex sampling tasks.         │
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Estimate spectral quality of sampling pattern (blue-noise metric)
-// Lower = better uniformity, higher = more noise
-float estimateSamplingNoise(vec3 sampleColors[16]) {
-    // Compute mean
-    vec3 mean = vec3(0.0);
-    for (int i = 0; i < 16; i++) {
-        mean += sampleColors[i];
-    }
-    mean /= 16.0;
-
-    // Compute variance
-    float variance = 0.0;
-    for (int i = 0; i < 16; i++) {
-        vec3 diff = sampleColors[i] - mean;
-        variance += dot(diff, diff);
-    }
-    variance /= 16.0;
-
-    // Return standard deviation (sqrt of variance)
-    return sqrt(variance);
-}
-
-// ===================================================================
-// MULTIPLE IMPORTANCE SAMPLING (MIS)
-// ===================================================================
-
-// Balance heuristic for MIS (Veach & Guibas, 1997)
-// Combines samples from multiple distributions
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ misPowerHeuristic()                                                     ║
+// ║                                                                         ║
+// │ Balance heuristic with power parameter for MIS (Veach & Guibas).      │
+// │ Combines samples from two distributions using power heuristic.        │
+// │                                                                         ║
+// │ Parameters:                                                            ║
+// │   pdfA    - Probability density from first distribution               │
+// │   pdfB    - Probability density from second distribution              │
+// │   beta    - Power parameter (typically 2.0 for balance heuristic)    │
+// │                                                                         ║
+// │ Returns: Weight for current sample [0, 1]                            │
+// └─────────────────────────────────────────────────────────────────────────┘
 float misPowerHeuristic(float pdfA, float pdfB, float beta) {
     float a = pow(pdfA, beta);
     float b = pow(pdfB, beta);
     return a / (a + b);
 }
 
-// Balanced MIS weight (special case of power heuristic with beta=2)
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ misBalance()                                                            ║
+// ║                                                                         ║
+// │ Balance heuristic for MIS (power heuristic with beta=1.0).            │
+// │ Simple and effective for most applications.                           │
+// │                                                                         ║
+// │ Parameters:                                                            ║
+// │   pdfA    - Probability density from first distribution               │
+// │   pdfB    - Probability density from second distribution              │
+// │                                                                         ║
+// │ Returns: Weight for current sample [0, 1]                            │
+// └─────────────────────────────────────────────────────────────────────────┘
 float misBalance(float pdfA, float pdfB) {
     return pdfA / (pdfA + pdfB);
-}
-
-// ===================================================================
-// VARIANCE REDUCTION ESTIMATORS
-// ===================================================================
-
-// Control variate for variance reduction
-// Uses low-variance approximation to reduce variance of high-variance sample
-struct VarianceEstimate {
-    vec3 value;
-    float variance;
-};
-
-VarianceEstimate controlVariateEstimate(
-    vec3 sample,
-    vec3 lowVarianceApprox,
-    vec3 controlMean
-) {
-    // E[f] = E[f - g] + E[g] where g is low-variance
-    vec3 estimator = (sample - lowVarianceApprox) + controlMean;
-
-    // Variance is reduced by correlation with control variate
-    float estimatedVariance = length(sample - controlMean);
-
-    return VarianceEstimate(estimator, estimatedVariance);
 }
 
 #endif // INCLUDE_ADVANCED_SAMPLING
