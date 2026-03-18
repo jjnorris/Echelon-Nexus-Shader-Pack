@@ -29,7 +29,7 @@
 #include "lib/screen_space_reflections.glsl"
 #include "lib/optimization_fallbacks.glsl"
 #include "lib/temporal_anti_aliasing.glsl"
-#include "lib/bloom_spectral.glsl"
+#include "lib/bloom_and_spectral.glsl"
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ UNIFORM INPUTS                                                            ║
@@ -238,41 +238,37 @@ void main() {
         vec2 bloomInvScreenSize = 1.0 / textureSize(colortex0, 0);
 
         // Determine bloom quality tier
-        int bloomQuality = 1;  // Default: Balanced
-        #ifdef BLOOM_QUALITY_0
-            bloomQuality = 0;  // Fast (1 level, ~2ms)
-        #elif defined(BLOOM_QUALITY_1)
-            bloomQuality = 1;  // Balanced (3 levels, ~4ms)
+        int bloomQuality = 2;  // Default: Balanced
+        #ifdef BLOOM_QUALITY_1
+            bloomQuality = 1;  // Fast (2 levels, ~1.0ms)
         #elif defined(BLOOM_QUALITY_2)
-            bloomQuality = 2;  // High-quality (5 levels, ~6ms)
+            bloomQuality = 2;  // Balanced (4 levels, ~1.5ms)
+        #elif defined(BLOOM_QUALITY_3)
+            bloomQuality = 3;  // High-quality (5 levels, ~2.5ms)
         #endif
 
         // Bloom parameters
         float bloomThreshold = 1.0;  // HDR luminance threshold
-        float bloomIntensity = 1.0;  // Bloom strength multiplier
-        float bloomRadius = 1.0;     // Blur radius scale
+        float bloomStrength = 1.0;   // Bloom intensity
 
         // Override with shader options if available
         #ifdef BLOOM_THRESHOLD
             bloomThreshold = BLOOM_THRESHOLD;
         #endif
         #ifdef BLOOM_STRENGTH
-            bloomIntensity = BLOOM_STRENGTH * 1.5;  // Scale to visual intensity
+            bloomStrength = BLOOM_STRENGTH * 1.5;  // Scale to visual intensity
         #endif
 
-        // Apply bloom
-        vec3 bloomColor = applyBloom(
+        // Apply bloom and spectral effects
+        color = applyBloomAndSpectral(
+            color,
             colortex0,
             vTexCoord,
             bloomInvScreenSize,
+            bloomStrength,
             bloomThreshold,
-            bloomIntensity,
-            bloomRadius,
             bloomQuality
         );
-
-        // Add bloom to color (additive composite)
-        color += bloomColor;
     #endif
 
     // ╔─────────────────────────────────────────────────────────────────────╗
@@ -295,5 +291,5 @@ void main() {
     // ║ Step 7: Output Final Color                                         ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    colortex0_out = vec4(color, litScene.a);
+    colortex0_out = vec4(color, 1.0);
 }
