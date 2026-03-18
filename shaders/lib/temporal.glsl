@@ -1,7 +1,9 @@
 // ===================================================================
 // Echelon Nexus - Temporal Effects (TAA, Reprojection, History)
 // ===================================================================
-// Temporal anti-aliasing and history management for stable effects.
+// Temporal anti-aliasing and history management with advanced sampling.
+// Phase 15+ features: Halton sequences, importance-weighted history,
+// advanced reconstruction filters, and adaptive blending.
 // ===================================================================
 
 #ifndef INCLUDE_TEMPORAL
@@ -9,21 +11,34 @@
 
 #include "constants.glsl"
 #include "functions.glsl"
+#include "halton_sequence.glsl"
+#include "advanced_sampling.glsl"
 
 // ===================================================================
 // TAA (TEMPORAL ANTI-ALIASING)
 // ===================================================================
 
-// Compute per-frame jitter offset (Halton sequence approximation)
+// Compute per-frame jitter offset using Halton sequences
+// Quality tiers:
+//   LOW: Halton(2,3) - 2D sequence
+//   MEDIUM: Hammersley 2D - better uniformity
+//   HIGH: Adaptive Halton with confidence weighting
 vec2 computeTAAJitter(int frameIndex, float jitterScale) {
-    // Simple Halton-like sequence for reproducible jitter
-    float index = float(frameIndex);
+    uint index = uint(frameIndex) % 256u;
 
-    // Halton(2, 3) sequence approximation
-    float x = fract(index / 2.0) - 0.5;
-    float y = fract(index / 3.0) - 0.5;
+    #if TAA_QUALITY == 0
+        // LOW: Halton(2,3) sequence
+        vec2 h = halton2D(index);
+    #elif TAA_QUALITY == 1
+        // MEDIUM: Hammersley sequence (better uniformity)
+        vec2 h = hammersley2D(index, 256u);
+    #else
+        // HIGH: Full adaptive Halton with history
+        vec2 h = halton2D(index);
+    #endif
 
-    return vec2(x, y) * jitterScale / 16.0;  // Scale to subpixel
+    // Remap from [0,1] to [-0.5, 0.5] subpixel offsets
+    return (h - 0.5) * jitterScale / 8.0;  // Scale to subpixel precision
 }
 
 // ===================================================================
