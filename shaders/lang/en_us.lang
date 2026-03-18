@@ -1,0 +1,334 @@
+# ===================================================================
+# Echelon Nexus Shader Pack - English (US) Language File
+# ===================================================================
+
+# Screen Labels
+screen.profile=Quality Profiles
+screen.quality=Render Quality
+screen.rendering=Rendering Options
+screen.effects=Post-Processing Effects
+screen.tonemap=Tonemapping & Color
+screen.advanced=Advanced Settings
+
+# Profile Selection
+option.PROFILE=Quality Profile
+option.PROFILE.comment=\
+§7Select overall quality preset (determines all related settings)\n\
+§6LOW§7: iGPU, 60 FPS\n\
+§6MEDIUM§7: GTX 960, 60 FPS\n\
+§6HIGH§7: GTX 1060, 60 FPS\n\
+§6ULTRA§7: RTX 2060, 50+ FPS\n\
+§6CINEMATIC§7: RTX 4080, 30-40 FPS
+
+option.TIER=Tier (Auto-Set)
+option.TIER.comment=Internal tier identifier; set automatically by profile selection
+
+# ===================================================================
+# MATERIAL & PBR
+# ===================================================================
+
+option.PBR_MODE=Material Format
+option.PBR_MODE.comment=\
+§6LabPBR§7 (preferred): Modern standard format\n\
+§6oldPBR§7 (legacy): Older format; graceful fallback
+
+option.LABPBR_ON=Enable LabPBR Decoding
+option.LABPBR_ON.comment=Decode materials using LabPBR standard (Red=Smoothness, Green=F0)
+
+option.OLDPBR_ON=Enable oldPBR Fallback
+option.OLDPBR_ON.comment=Support legacy oldPBR material format as fallback
+
+option.PARALLAX_ON=Height Mapping / Parallax
+option.PARALLAX_ON.comment=\
+§7Enable parallax-based height displacement\n\
+§8(Enhanced path; graceful fallback on older hardware)
+
+option.PARALLAX_QUALITY=Parallax Quality Multiplier
+option.PARALLAX_QUALITY.comment=Parallax sample count scale (higher = more detail, slower)
+
+# ===================================================================
+# SHADOW CONFIGURATION
+# ===================================================================
+
+option.SHADOW_QUALITY=Shadow Filtering Quality
+option.SHADOW_QUALITY.comment=\
+§6PCF§7: Percentage-closer filtering (baseline)\n\
+§6PCSS§7: Contact-hardened shadows (enhanced)\n\
+§6Advanced§7: Blue-noise or specialized filtering (premium)
+
+option.SHADOW_FILTER_SIZE=Shadow Filter Radius
+option.SHADOW_FILTER_SIZE.comment=Size of shadow filter kernel (higher = softer, blurrier shadows)
+
+option.SHADOW_DISTANCE=Shadow Map Distance
+option.SHADOW_DISTANCE.comment=Maximum distance to render shadows (blocks); higher = slower
+
+option.SHADOW_BIAS=Shadow Depth Bias
+option.SHADOW_BIAS.comment=Bias to prevent shadow acne artifacts (rarely needs adjustment)
+
+# ===================================================================
+# LIGHTING
+# ===================================================================
+
+option.EMISSIVE_RESPONSE=Emissive Light Response
+option.EMISSIVE_RESPONSE.comment=Enable self-illuminated surfaces (lava, glowstone, etc.)
+
+option.TORCH_FLICKER=Torch Flicker
+option.TORCH_FLICKER.comment=Enable dynamic flickering on torch light
+
+option.TORCH_FLICKER_SPEED=Torch Flicker Speed
+option.TORCH_FLICKER_SPEED.comment=Frequency of torch flicker animation
+
+# ===================================================================
+# SSR (SCREEN-SPACE REFLECTIONS)
+# ===================================================================
+
+option.SSR_ON=Screen-Space Reflections (SSR)
+option.SSR_ON.comment=\
+§7Enable reflections from screen-space data\n\
+§8(Enhanced path; optional; may impact performance)
+
+option.SSR_QUALITY=SSR Algorithm Quality
+option.SSR_QUALITY.comment=\
+§6Stochastic§7: Noisy, fast\n\
+§6Hierarchical§7: Smooth, balanced\n\
+§6High-Quality§7: Maximum detail, slowest
+
+option.SSR_STEP_COUNT=SSR Trace Steps
+option.SSR_STEP_COUNT.comment=Number of steps in SSR ray marching (higher = better accuracy, slower)
+
+option.SSR_HISTORY_CLAMPING=SSR History Clamping
+option.SSR_HISTORY_CLAMPING.comment=Reduce temporal jitter by clamping reflection history
+
+# ===================================================================
+# TEMPORAL ANTI-ALIASING (TAA)
+# ===================================================================
+
+option.TAA_ON=Temporal Anti-Aliasing (TAA)
+option.TAA_ON.comment=\
+§7Enable frame-to-frame jittering to reduce aliasing\n\
+§8(Enhanced path; may show minor ghosting)
+
+option.TAA_JITTER_SCALE=TAA Jitter Amount
+option.TAA_JITTER_SCALE.comment=Amount of per-frame subpixel jitter (higher = more AA, more jitter)
+
+option.TAA_SHARPEN=TAA Sharpening
+option.TAA_SHARPEN.comment=Post-TAA sharpening filter strength (reduce blurriness)
+
+option.TAA_CLAMP_STRENGTH=TAA History Clamping
+option.TAA_CLAMP_STRENGTH.comment=Strength of history clamping; reduce to fix ghosting
+
+# ===================================================================
+# BLOOM & POST-PROCESSING
+# ===================================================================
+
+option.BLOOM_ON=Fullscreen Bloom
+option.BLOOM_ON.comment=\
+§7Enable bright light bloom effect\n\
+§8(Enhanced path; may impact performance on low-end)
+
+option.BLOOM_STRENGTH=Bloom Strength
+option.BLOOM_STRENGTH.comment=Intensity of bloom contribution to final image
+
+option.BLOOM_THRESHOLD=Bloom Brightness Threshold
+option.BLOOM_THRESHOLD.comment=Minimum brightness to trigger bloom (higher = less bloom)
+
+option.BLOOM_QUALITY=Bloom Resolution
+option.BLOOM_QUALITY.comment=\
+§6Half-Res§7: Faster, blurrier\n\
+§6Full-Res§7: Slower, sharper
+
+option.SHARPEN_AMOUNT=Unsharp Mask Sharpening
+option.SHARPEN_AMOUNT.comment=Subtle edge sharpening strength (0 = none, 1 = maximum)
+
+# ===================================================================
+# WATER CONFIGURATION
+# ===================================================================
+
+option.WATER_QUALITY=Water Rendering Quality
+option.WATER_QUALITY.comment=\
+§6Basic§7: Still water with simple Fresnel\n\
+§6Animated§7: Animated wave normals\n\
+§6Advanced§7: Caustics and complex effects
+
+option.CAUSTICS_ON=Water Caustics
+option.CAUSTICS_ON.comment=\
+§7Enable animated caustic light patterns underwater\n\
+§8(Premium path; optional; may impact performance)
+
+option.CAUSTICS_SPEED=Caustics Animation Speed
+option.CAUSTICS_SPEED.comment=Speed of caustic wave animation
+
+option.WETNESS_ON=Wetness Response
+option.WETNESS_ON.comment=Modulate material properties based on rain/wetness state
+
+option.RAIN_PUDDLES=Rain Puddles
+option.RAIN_PUDDLES.comment=Show puddles and water accumulation during rain
+
+# ===================================================================
+# VOLUMETRIC FOG & ATMOSPHERE
+# ===================================================================
+
+option.VOLUMETRIC_FOG_ON=Volumetric Fog
+option.VOLUMETRIC_FOG_ON.comment=Enable volumetric-style atmospheric fog rendering
+
+option.FOG_QUALITY=Fog Quality
+option.FOG_QUALITY.comment=\
+§6Low§7: Simple fog\n\
+§6Medium§7: Balanced fog\n\
+§6High§7: Detailed volumetric fog
+
+option.AERIAL_PERSPECTIVE_DISTANCE=Aerial Perspective Range
+option.AERIAL_PERSPECTIVE_DISTANCE.comment=Distance over which fog effect occurs (blocks)
+
+option.WEATHER_FOG_DENSITY=Weather Fog Density
+option.WEATHER_FOG_DENSITY.comment=Multiplier for fog density during rain/weather
+
+# ===================================================================
+# CLOUD CONFIGURATION
+# ===================================================================
+
+option.CLOUDS_ON=Cloud Rendering
+option.CLOUDS_ON.comment=Enable cloud rendering (always recommended on)
+
+option.CLOUD_QUALITY=Cloud Quality
+option.CLOUD_QUALITY.comment=\
+§6Simple§7: Lightweight\n\
+§6Volumetric§7: Modern appearance\n\
+§6High-Quality§7: Maximum detail, slowest
+
+option.CLOUD_RAYMARCH_STEPS=Cloud Volumetric Steps
+option.CLOUD_RAYMARCH_STEPS.comment=Number of ray-marching steps for volumetric clouds (higher = smoother, slower)
+
+option.CLOUD_NOISE_DETAIL=Cloud Noise Detail
+option.CLOUD_NOISE_DETAIL.comment=Number of noise octaves for cloud detail (higher = more complex, slower)
+
+option.CLOUD_TEMPORAL_STABILITY=Cloud Temporal Filtering
+option.CLOUD_TEMPORAL_STABILITY.comment=Reduce cloud flickering via temporal filtering
+
+# ===================================================================
+# TONEMAPPING & COLOR GRADING
+# ===================================================================
+
+option.TONEMAP_OPERATOR=Tonemapping Operator
+option.TONEMAP_OPERATOR.comment=\
+§6ACES§7: Cinematic, industry-standard\n\
+§6Filmic§7: Balanced, realistic\n\
+§6Reinhard§7: Simple, fast
+
+option.TONEMAP_EXPOSURE=Exposure Adjustment
+option.TONEMAP_EXPOSURE.comment=Overall image brightness (-2.0 = 4x darker, +2.0 = 4x brighter)
+
+option.COLOR_GRADE_PRESET=Color Grading Preset
+option.COLOR_GRADE_PRESET.comment=\
+§6Default§7: Neutral color balance\n\
+§6Warm§7: Orange/yellow tint\n\
+§6Cool§7: Blue/cyan tint\n\
+§6Saturated§7: Vibrant colors
+
+option.COLOR_GRADE_STRENGTH=Color Grading Strength
+option.COLOR_GRADE_STRENGTH.comment=Blend strength of color grading LUT (0 = off, 1 = full strength)
+
+# ===================================================================
+# COMPUTE & ADVANCED PATHS
+# ===================================================================
+
+option.COMPUTE_PATH_ON=Compute Shader Acceleration
+option.COMPUTE_PATH_ON.comment=\
+§7Use compute shaders for bloom, helpers, etc.\n\
+§8(Optional; graceful fallback if not supported)
+
+option.SSBO_PATH_ON=SSBO-Assisted Paths
+option.SSBO_PATH_ON.comment=\
+§7Use Shader Storage Buffers for advanced effects\n\
+§8(Optional; premium features; graceful fallback)
+
+option.ALLOW_CONCURRENT_COMPUTE=Concurrent Compute
+option.ALLOW_CONCURRENT_COMPUTE.comment=\
+§7Use Iris concurrent compute scheduling\n\
+§8(Advanced; only for specific compute workloads)
+
+# ===================================================================
+# DEBUG & DIAGNOSTICS
+# ===================================================================
+
+option.DEBUG_VIEW=Debug Visualization
+option.DEBUG_VIEW.comment=\
+§6Off§7: Normal rendering\n\
+§6Normals§7: Surface normals (RGB)\n\
+§6Roughness§7: Material roughness\n\
+§6Metallic§7: Material metallic value\n\
+§6Emissive§7: Self-emitted light\n\
+§6Depth§7: Linearized depth\n\
+§6Lighting§7: Direct lighting contribution\n\
+§6History§7: TAA history buffer\n\
+§6SSR§7: Screen-space reflections
+
+option.DEBUG_VIEW_MODE=Enable Debug Mode
+option.DEBUG_VIEW_MODE.comment=\
+§7Overlay debug information on screen\n\
+§8(Use with Debug Visualization option)
+
+option.DEBUG_SHOW_BUFFERS=Show Intermediate Buffers
+option.DEBUG_SHOW_BUFFERS.comment=\
+§7Display intermediate colortex buffers\n\
+§8(Diagnostic; for development only)
+
+# ===================================================================
+# PROFILE DESCRIPTIONS
+# ===================================================================
+
+profile.LOW.name=Low (iGPU / Intel Iris / AMD APU)
+profile.LOW.description=\
+§7Optimized for integrated graphics\n\
+§7Target: 60 FPS on iGPU\n\
+§8• Basic PBR lighting\n\
+§8• PCF shadows\n\
+§8• Simple clouds\n\
+§8• No SSR, TAA, or Bloom
+
+profile.MEDIUM.name=Medium (GTX 960 / RX 470)
+profile.MEDIUM.description=\
+§7Balanced visual quality and performance\n\
+§7Target: 60 FPS\n\
+§8• Full PBR support\n\
+§8• PCF shadows\n\
+§8• Volumetric clouds\n\
+§8• Optional SSR/Bloom
+
+profile.HIGH.name=High (GTX 1060 / RX 580)
+profile.HIGH.description=\
+§7High visual quality; good performance\n\
+§7Target: 60 FPS\n\
+§8• Advanced PBR\n\
+§8• PCSS shadows\n\
+§8• SSR + TAA enabled\n\
+§8• No Bloom by default
+
+profile.ULTRA.name=Ultra (RTX 2060 / RX 5700 XT)
+profile.ULTRA.description=\
+§7Maximum visual quality with compute\n\
+§7Target: 50+ FPS\n\
+§8• All features enabled\n\
+§8• Advanced shadow filtering\n\
+§8• SSR, TAA, Bloom\n\
+§8• Compute paths available
+
+profile.CINEMATIC.name=Cinematic (RTX 4080 / RX 7900 XTX)
+profile.CINEMATIC.description=\
+§7Ultra-high visual fidelity\n\
+§7Target: 30-40 FPS\n\
+§8• All features at maximum\n\
+§8• Full SSBO acceleration\n\
+§8• Premium volumetric effects\n\
+§8• Maximum sample counts
+
+# ===================================================================
+# MISCELLANEOUS LABELS
+# ===================================================================
+
+message.PROFILE.info=Quality profile changed; shader recompilation in progress...
+message.TIER.info=Tier updated; related options locked per profile.
+
+# ===================================================================
+# END OF LANGUAGE FILE
+# ===================================================================
