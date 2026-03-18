@@ -30,6 +30,7 @@
 #include "lib/optimization_fallbacks.glsl"
 #include "lib/temporal_anti_aliasing.glsl"
 #include "lib/bloom_and_spectral.glsl"
+#include "lib/bloom_subphases.glsl"
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ UNIFORM INPUTS                                                            ║
@@ -76,6 +77,9 @@ void main() {
 
     // Single read of lit scene
     vec3 color = texture(colortex0, vTexCoord).rgb;
+
+    // Store pre-bloom color for sub-phase calculations
+    vec3 sceneColorBeforeBloom = color;
 
     // ╔─────────────────────────────────────────────────────────────────────╗
     // ║ PHASE 12 OPTIMIZATION: Cache G-buffers for reuse                   ║
@@ -269,6 +273,56 @@ void main() {
             bloomThreshold,
             bloomQuality
         );
+
+        // ╔─────────────────────────────────────────────────────────────────────╗
+        // ║ PHASE 14 SUB-PHASES (Optional Enhancements)                        ║
+        // ║                                                                       ║
+        // ║ Apply advanced bloom extensions:                                  ║
+        // ║   14A: Dynamic threshold adjustment                               ║
+        // ║   14B: Per-light bloom contributions                              ║
+        // ║   14C: Motion blur trail integration                              ║
+        // ║   14D: Advanced glare and halo effects                            ║
+        // ║   14E: God rays bloom interaction                                 ║
+        // ╚─────────────────────────────────────────────────────────────────────╝
+
+        #ifdef BLOOM_SUBPHASES_ON
+            // Determine which sub-phases to enable
+            bool phase14A = true;   // Dynamic threshold (always safe)
+            bool phase14B = false;  // Per-light (requires light data)
+            bool phase14C = false;  // Motion blur (requires motion vectors)
+            bool phase14D = true;   // Glare effects (always safe)
+            bool phase14E = true;   // God rays (requires volumetric integration)
+
+            // Override with shader options if available
+            #ifdef BLOOM_PHASE14A
+                phase14A = true;
+            #endif
+            #ifdef BLOOM_PHASE14D
+                phase14D = true;
+            #endif
+            #ifdef BLOOM_PHASE14E
+                phase14E = true;
+            #endif
+
+            // Apply sub-phases to bloom result
+            vec3 bloomedColor = color;  // Store pre-subphase bloom
+            vec3 bloomContribution = bloomedColor - sceneColorBeforeBloom;
+
+            // Apply enhancements to bloom portion
+            bloomContribution = applyBloomSubPhases(
+                bloomContribution,
+                color,
+                vTexCoord,
+                phase14A,
+                phase14B,
+                phase14C,
+                phase14D,
+                phase14E
+            );
+
+            // Add enhanced bloom back to scene
+            color = sceneColorBeforeBloom + bloomContribution;
+        #endif
     #endif
 
     // ╔─────────────────────────────────────────────────────────────────────╗
