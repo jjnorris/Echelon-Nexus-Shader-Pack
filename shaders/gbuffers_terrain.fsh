@@ -11,6 +11,8 @@
 
 #include "lib/constants.glsl"
 #include "lib/functions.glsl"
+#include "lib/pbr_material.glsl"
+#include "lib/material_sampling.glsl"
 
 // ===================================================================
 // FRAGMENT INPUT
@@ -37,53 +39,54 @@ layout(location = 2) out vec4 colortex2;  // Normals + depth
 // ===================================================================
 
 void main() {
-    // Sample albedo from block texture atlas
-    vec4 albedoSample = texture(tex, vTexCoord);
-
-    // Alpha test (discard transparent pixels)
-    if (albedoSample.a < 0.5) {
+    // Step 1: Alpha test
+    if (!alphaTest(vTexCoord, 0.5)) {
         discard;
     }
 
-    vec3 albedo = albedoSample.rgb;
-
-    // Sample specular/PBR data (if available)
-    // For baseline, we'll assume simple LabPBR format:
-    // specularSample.rgb = normal map (in this simplified version, we'll use geometric normal)
-    // specularSample.a = smoothness (or leave as default)
-    vec4 specularSample = texture(specularTex, vTexCoord);
-
-    // Default material: diffuse white (no specularity)
-    float smoothness = 0.5;  // Medium roughness
-    float metallic = 0.0;
-    float emissive = 0.0;
-
-    // Store in material buffer (colortex1)
-    // R = roughness (inverted smoothness), G = metallic, B = emissive, A = ?
-    colortex1 = vec4(
-        1.0 - smoothness,  // R: roughness
-        metallic,          // G: metallic
-        emissive,          // B: emissive
-        1.0                // A: reserved
+    // Step 2: Sample and decode material
+    // Use LabPBR format by default (pbrMode=0)
+    // Disable parallax for terrain (Phase 7+)
+    Material material = sampleMaterialComplete(
+        vTexCoord,
+        normalize(vNormal),
+        vec3(0.0),  // viewDir not available in gbuffers; compute in deferred
+        0,          // pbrMode=0 (LabPBR)
+        false       // enableParallax=false for terrain
     );
 
-    // Store normals in colortex2
-    // R, G = encoded normal (oct-wrap or other method)
-    // B, A = depth encoding
-    vec3 normal = normalize(vNormal);
-    vec2 encodedNormal = encodeUnitVector(normal);
+    // Step 3: Blend with vertex color (for grass, leaves, etc.)
+    material = blendWithVertexColor(material, vColor);
 
-    // Encode depth in remaining channels
-    float depthLinear = gl_FragCoord.z;  // Placeholder; should linearize properly
-    colortex2 = vec4(
-        encodedNormal.x,
-        encodedNormal.y,
-        depthLinear,  // Simplified depth
+    // Step 4: Store in G-buffers
+
+    // colortex0: Albedo (will be lit in deferred pass)
+    colortex0 = vec4(material.albedo, 1.0);
+
+    // colortex1: Material properties
+    // R = roughness, G = metallic, B = emissive, A = reserved
+    colortex1 = vec4(
+        material.roughness,
+        material.metallic,
+        material.emissive,
         1.0
     );
 
-    // Output lit color (for now, just use albedo; deferred pass will add lighting)
-    colortex0 = vec4(albedo, 1.0);
+    // colortex2: Normal + depth
+    // Encode normal using oct-wrap
+    vec2 encodedNormal = encodeUnitVector(material.normal);
+
+    // Linearize depth (simplified; accurate linearization in Phase 4)
+    float depthNDC = gl_FragCoord.z;
+    float depthLinear = linearizeDepth(depthNDC, NEAR_PLANE, FAR_PLANE);
+    float depthNormalized = clamp(depthLinear / FAR_PLANE, 0.0, 1.0);
+
+    colortex2 = vec4(
+        encodedNormal.x,
+        encodedNormal.y,
+        depthNormalized,
+        1.0
+    );
 }
 
 // ===================================================================

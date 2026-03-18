@@ -6,6 +6,8 @@
 
 #include "lib/constants.glsl"
 #include "lib/functions.glsl"
+#include "lib/pbr_material.glsl"
+#include "lib/material_sampling.glsl"
 
 in vec3 vPosition;
 in vec3 vNormal;
@@ -18,20 +20,36 @@ layout(location = 1) out vec4 colortex1;
 layout(location = 2) out vec4 colortex2;
 
 void main() {
-    vec4 albedoSample = texture(tex, vTexCoord);
-
-    if (albedoSample.a < 0.5) {
+    if (!alphaTest(vTexCoord, 0.5)) {
         discard;
     }
 
-    vec3 albedo = albedoSample.rgb;
+    Material material = sampleMaterialComplete(
+        vTexCoord,
+        normalize(vNormal),
+        vec3(0.0),
+        0,      // LabPBR
+        false   // No parallax
+    );
 
-    colortex1 = vec4(0.5, 0.0, 0.0, 1.0);
+    material = blendWithVertexColor(material, vColor);
 
-    vec3 normal = normalize(vNormal);
-    vec2 encodedNormal = encodeUnitVector(normal);
+    colortex0 = vec4(material.albedo, 1.0);
 
-    colortex2 = vec4(encodedNormal.x, encodedNormal.y, gl_FragCoord.z, 1.0);
+    colortex1 = vec4(
+        material.roughness,
+        material.metallic,
+        material.emissive,
+        1.0
+    );
 
-    colortex0 = vec4(albedo, 1.0);
+    vec2 encodedNormal = encodeUnitVector(material.normal);
+    float depthNormalized = clamp(gl_FragCoord.z / FAR_PLANE, 0.0, 1.0);
+
+    colortex2 = vec4(
+        encodedNormal.x,
+        encodedNormal.y,
+        depthNormalized,
+        1.0
+    );
 }
