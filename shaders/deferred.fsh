@@ -15,6 +15,8 @@
 #include "lib/functions.glsl"
 #include "lib/pbr_material.glsl"
 #include "lib/lighting_common.glsl"
+#include "lib/viewport.glsl"
+#include "lib/shadow_sampling.glsl"
 
 in vec2 vTexCoord;
 
@@ -44,6 +46,7 @@ void main() {
     // Decode normal
     vec2 encodedNormal = normalSample.xy;
     vec3 normal = decodeUnitVector(encodedNormal);
+    float depth = normalSample.b;
 
     // Compute F0 based on metallic workflow
     vec3 f0 = computeF0(metallic, albedo);
@@ -51,33 +54,54 @@ void main() {
     // Apply roughness remapping (perceptual to alpha)
     float alpha = remapRoughness(roughness);
 
-    // Step 3: Compute direct lighting
-    // For now, simple ambient + sun
-    // Full per-light calculation will come in Phase 6+
+    // Step 3: Reconstruct view-dependent data
+    // Reconstruct view-space position from depth
+    vec3 viewPos = reconstructViewPos(vTexCoord, depth, gbufferProjectionInverse);
 
-    vec3 viewDir = normalize(cameraPosition - vFragPos);  // Placeholder; will be fixed in Phase 4
+    // Compute view direction (from fragment toward camera)
+    // In view space, camera is at origin, so -viewPos is the view direction
+    vec3 viewDir = normalize(-viewPos);
 
-    // Simple ambient occlusion and sky contribution
-    vec3 ambient = albedo * 0.15;  // Flat ambient
+    // Ensure normal is front-facing relative to view
+    normal = ensureFrontFacing(normal, viewDir);
 
-    // Placeholder sun lighting
+    // Step 4: Compute direct lighting with shadows
+    // Simple ambient + sun
+    vec3 ambient = albedo * 0.15;  // Flat ambient (Phase 12: replace with IBL)
+
+    // Sun lighting
     Light sunlight;
     sunlight.direction = normalize(vec3(0.5, 0.8, 0.2));
     sunlight.radiance = vec3(1.0);
 
-    // Direct lighting from sun (simplified; no shadow for now)
+    // Reconstruct world position for shadow computation
+    vec3 worldPos = reconstructWorldPosFromScreen(
+        vTexCoord,
+        depth,
+        gbufferProjectionInverse,
+        gbufferModelViewInverse,
+        cameraPosition
+    );
+
+    // Compute shadow factor (placeholder matrices; actual shadow projection in Phase 6)
+    float shadowFactor = 0.0;  // No shadow for now (will enable in Phase 6)
+
+    // Direct lighting from sun
     vec3 direct = computeDirectLighting(
         Material(albedo, normal, roughness, metallic, emissive, f0, 0.0),
         sunlight,
         viewDir,
-        0.0  // No shadow
+        shadowFactor
     );
 
-    // Step 4: Apply emissive
+    // Step 5: Apply emissive
     vec3 emissiveLight = albedo * emissive * 2.0;
 
-    // Step 5: Combine lighting
+    // Step 6: Combine lighting
     vec3 finalColor = ambient + direct + emissiveLight;
+
+    // Step 7: Clamp to valid range (prevent NaN propagation)
+    finalColor = clamp(finalColor, 0.0, 100.0);
 
     // Output lit color
     colortex0 = vec4(finalColor, albedoSample.a);
