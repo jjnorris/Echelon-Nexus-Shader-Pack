@@ -26,6 +26,7 @@
 #include "lib/blue_noise.glsl"
 #include "lib/volumetric.glsl"
 #include "lib/viewport.glsl"
+#include "lib/screen_space_reflections.glsl"
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ UNIFORM INPUTS                                                            ║
@@ -118,13 +119,61 @@ void main() {
     #endif
 
     // ╔─────────────────────────────────────────────────────────────────────╗
-    // ║ Step 2b: Screen-Space Reflections (PHASE 11)                       ║
-    // ║ TODO: Implement SSR sampling and blending                          ║
+    // ║ Step 2b: Screen-Space Reflections (PHASE 11 COMPLETE)              ║
+    // ║                                                                       ║
+    // ║ Ray march through depth buffer to render reflections without ray  ║
+    // ║ tracing. Quality scales based on SSR_QUALITY option.               ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    // Placeholder: No SSR for now (Phase 11)
-    // vec3 ssr = sampleScreenSpaceReflections(vTexCoord, color);
-    // color = mix(color, ssr, 0.3);
+    #ifdef SSR_ON
+        // Read material parameters for reflection calculation
+        vec4 gbuffer1 = texture(colortex1, vTexCoord);
+        float roughness = gbuffer1.r;
+        float metallic = gbuffer1.g;
+
+        // Only compute SSR for reflective surfaces (metallic > 0.1)
+        if (metallic > 0.1) {
+            // Read normal from G-buffer
+            vec4 gbuffer2 = texture(colortex2, vTexCoord);
+            vec2 encodedNormal = gbuffer2.xy;
+            vec3 normal = decodeUnitVector(encodedNormal);
+
+            // Reconstruct world position
+            float depth = gbuffer2.b;
+            vec3 viewPos = reconstructViewPos(vTexCoord, depth, gbufferProjectionInverse);
+            vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
+
+            // View direction
+            vec3 viewDir = normalize(-viewPos);
+
+            // Determine SSR quality based on tier
+            int ssrQuality = 2;  // Default: Hierarchical
+            #ifdef SSR_QUALITY_1
+                ssrQuality = 1;  // Stochastic (fast)
+            #elif defined(SSR_QUALITY_2)
+                ssrQuality = 2;  // Hierarchical (balanced)
+            #elif defined(SSR_QUALITY_3)
+                ssrQuality = 3;  // High-quality (expensive)
+            #endif
+
+            // Compute screen-space reflections
+            vec3 reflectionColor = computeScreenSpaceReflections(
+                vTexCoord,
+                normal,
+                viewDir,
+                metallic,
+                depthtex0,
+                colortex0,
+                ssrQuality,
+                gbufferProjection
+            );
+
+            // Blend reflections based on roughness and metallic
+            // Rougher surfaces get blurry reflections (fade based on roughness)
+            float reflectionBlend = metallic * (1.0 - roughness * 0.5);
+            color = mix(color, reflectionColor, reflectionBlend * 0.4);
+        }
+    #endif
 
     // ╔─────────────────────────────────────────────────────────────────────╗
     // ║ Step 3: Temporal Anti-Aliasing (PHASE 15)                          ║
