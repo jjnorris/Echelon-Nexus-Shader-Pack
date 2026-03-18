@@ -1,55 +1,79 @@
-// ===================================================================
-// Complex Water Physics (Phase 18)
-// ===================================================================
-// Gerstner wave system for realistic water simulation with proper
-// phase relationships and energy conservation.
-//
-// References:
-//   - Real-Time Animation and Rendering of Ocean Waves (Mastin et al., 2005)
-//   - Fast and Realistic Simulation of Water Surfaces (Gonzato et al., 2002)
-//   - Real-Time Simulation of Large Bodies of Water (Tessendorf, 2004)
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║                                                                           ║
+// ║                  COMPLEX WATER PHYSICS (PHASE 18)                        ║
+// ║                                                                           ║
+// ║  Hierarchical Gerstner wave system for realistic water surfaces.        ║
+// ║  Proper phase relationships, energy conservation, and multi-scale        ║
+// ║  wave interaction. Gerstner waves produce peaked crests and broad       ║
+// ║  troughs characteristic of real ocean dynamics.                         ║
+// ║                                                                           ║
+// ║  References: Mastin et al. 2005, Gonzato et al. 2002, Tessendorf 2004  ║
+// ║                                                                           ║
+// ╚═══════════════════════════════════════════════════════════════════════════╝
 
 #ifndef INCLUDE_WATER_PHYSICS
 #define INCLUDE_WATER_PHYSICS
 
-// ===================================================================
-// GERSTNER WAVE DEFINITION
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ GERSTNER WAVE DEFINITION                                                 ║
+// ║                                                                           ║
+// │ Single Gerstner wave component with wavelength, amplitude, speed,      │
+// │ direction, and animation phase. Gerstner waves produce realistic       │
+// │ cycloid particle motion creating characteristic wave shapes.           │
+// └───────────────────────────────────────────────────────────────────────────┘
 
 struct GerstnerWave {
-    float wavelength;      // Distance between wave crests (meters)
-    float amplitude;       // Height of wave (meters)
-    float speed;          // How fast wave travels (m/s)
-    vec2 direction;       // Direction wave travels (normalized)
-    float phase;          // Phase offset for animation
+    float wavelength;      // Distance between crests (normalized)
+    float amplitude;       // Wave height magnitude
+    float speed;           // Propagation speed
+    vec2 direction;        // Propagation direction (normalized)
+    float phase;           // Animation phase offset
 };
 
-// ===================================================================
-// WAVE CALCULATION
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ WAVE CALCULATION                                                         ║
+// │                                                                           ║
+// │ Computes surface displacement and normals from Gerstner wave equation. │
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Compute water surface displacement from single Gerstner wave
-// Returns: displacement vector (x, y = horizontal, z = vertical)
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ gerstnerWaveDisplacement()                                              ║
+// ║                                                                         ║
+// │ Computes 3D displacement from single Gerstner wave using cycloid      │
+// │ motion formula. Each water particle traces elliptical path as wave    │
+// │ passes, creating realistic peaked crests and broad troughs.           │
+// │                                                                         ║
+// │ Formula: x' = x - A×(k/ω)×sin(φ)×dir.x                             │
+// │          z' = z - A×(k/ω)×sin(φ)×dir.y                             │
+// │          y' = y + A×cos(φ)                                           │
+// │ Where: k=2π/λ (wavenumber), ω=k×speed (angular frequency), φ=phase  │
+// │                                                                         ║
+// │ Returns: 3D displacement vector (XZ horizontal, Y vertical)           │
+// └─────────────────────────────────────────────────────────────────────────┘
 vec3 gerstnerWaveDisplacement(
     vec3 worldPosition,
     GerstnerWave wave,
     float time
 ) {
-    // Wave parameters
-    float k = 2.0 * 3.14159265359 / wave.wavelength;  // Wavenumber
-    float w = k * wave.speed;                          // Angular frequency
+    // ────────────────────────────────────────────────────────────────────────
+    // Wave equation parameters
+    // k = wavenumber (spatial frequency), ω = angular frequency (temporal)
+    // ────────────────────────────────────────────────────────────────────────
+    float k = 2.0 * 3.14159265359 / wave.wavelength;
+    float w = k * wave.speed;
 
-    // Distance along wave direction
+    // ────────────────────────────────────────────────────────────────────────
+    // Compute phase: spatial + temporal components
+    // φ = k·d - ω·t + phase_offset
+    // ────────────────────────────────────────────────────────────────────────
     float d = dot(worldPosition.xz, wave.direction);
-
-    // Phase: includes spatial and temporal components
     float phase = k * d - w * time + wave.phase;
 
-    // Gerstner wave formula:
-    // x' = x - A * k/w * sin(phase) * dir.x
-    // z' = z - A * k/w * sin(phase) * dir.y
-    // y' = y + A * cos(phase)
-
+    // ────────────────────────────────────────────────────────────────────────
+    // Gerstner wave displacement (cycloid motion)
+    // Horizontal: circles traced by particles as wave passes
+    // Vertical: up/down motion synchronized with horizontal
+    // ────────────────────────────────────────────────────────────────────────
     float amplitude_factor = wave.amplitude * k / w;
 
     vec3 displacement = vec3(0.0);
@@ -59,24 +83,38 @@ vec3 gerstnerWaveDisplacement(
     return displacement;
 }
 
-// Compute normal from wave displacement
-// Uses finite differences to estimate surface normal
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ gerstnerWaveNormal()                                                    ║
+// ║                                                                         ║
+// │ Computes surface normal from wave displacement using finite           │
+// │ differences. Samples displacement at 3 points, computes tangent      │
+// │ vectors, and takes cross product for normal direction.               │
+// │                                                                         ║
+// │ Returns: Normalized surface normal for lighting calculations         │
+// └─────────────────────────────────────────────────────────────────────────┘
 vec3 gerstnerWaveNormal(
     vec3 worldPosition,
     GerstnerWave wave,
     float time,
     float sampleDistance
 ) {
-    // Sample displacement at current and nearby points
+    // ────────────────────────────────────────────────────────────────────────
+    // Finite difference sampling: displacements at 3 grid points
+    // ────────────────────────────────────────────────────────────────────────
     vec3 disp = gerstnerWaveDisplacement(worldPosition, wave, time);
     vec3 disp_x = gerstnerWaveDisplacement(worldPosition + vec3(sampleDistance, 0.0, 0.0), wave, time);
     vec3 disp_z = gerstnerWaveDisplacement(worldPosition + vec3(0.0, 0.0, sampleDistance), wave, time);
 
-    // Tangent vectors
+    // ────────────────────────────────────────────────────────────────────────
+    // Compute tangent vectors from displacement gradients
+    // ∂p/∂x, ∂p/∂z directions on surface
+    // ────────────────────────────────────────────────────────────────────────
     vec3 tangentX = vec3(1.0, (disp_x.y - disp.y) / sampleDistance, 0.0);
     vec3 tangentZ = vec3(0.0, (disp_z.y - disp.y) / sampleDistance, 1.0);
 
-    // Normal is cross product of tangents
+    // ────────────────────────────────────────────────────────────────────────
+    // Normal = cross(∂p/∂z, ∂p/∂x) normalized
+    // ────────────────────────────────────────────────────────────────────────
     return normalize(cross(tangentZ, tangentX));
 }
 

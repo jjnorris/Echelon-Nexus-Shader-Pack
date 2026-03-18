@@ -1,7 +1,12 @@
-// ===================================================================
-// Water Foam Generation & Rendering (Phase 18)
-// ===================================================================
-// Foam generation from wave curvature and shore interaction.
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║                                                                           ║
+// ║               WATER FOAM GENERATION & RENDERING (PHASE 18)               ║
+// ║                                                                           ║
+// ║  Physics-based foam generation from wave curvature and shore breaks.   ║
+// ║  Produces foam intensity from surface curvature variations and         ║
+// ║  white-water effects at wave crests and collisions.                    ║
+// ║                                                                           ║
+// ╚═══════════════════════════════════════════════════════════════════════════╝
 
 #ifndef INCLUDE_WATER_FOAM
 #define INCLUDE_WATER_FOAM
@@ -9,16 +14,26 @@
 #include "water_physics.glsl"
 #include "noise.glsl"
 
-// ===================================================================
-// FOAM GENERATION
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ FOAM GENERATION                                                          ║
+// │                                                                           ║
+// │ Generates foam from wave curvature, depth, and edge proximity.         │
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Generate foam based on wave characteristics
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ FoamData (struct)                                                       ║
+// ║                                                                         ║
+// │ Foam rendering parameters                                             │
+// │   intensity:  Foam amount [0,1] from wave curvature                   │
+// │   depthFade:  Exponential depth attenuation (deeper = less foam)      │
+// │   edgeFade:   Boundary softening at foam edges                        │
+// │   foamColor:  Color with blue tint at depth                          │
+// └─────────────────────────────────────────────────────────────────────────┘
 struct FoamData {
-    float intensity;        // How much foam (0-1)
-    float depthFade;        // Fade with depth
-    float edgeFade;         // Fade at wave edges
-    vec3 foamColor;         // Foam color
+    float intensity;        // Foam amount (0-1)
+    float depthFade;        // Depth attenuation
+    float edgeFade;         // Edge smoothing
+    vec3 foamColor;         // Foam color with depth tint
 };
 
 FoamData generateWaveFoam(

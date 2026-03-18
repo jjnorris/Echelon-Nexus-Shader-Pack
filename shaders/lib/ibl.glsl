@@ -1,19 +1,45 @@
-// ===================================================================
-// Image-Based Lighting (Phase 20)
-// ===================================================================
-// IBL diffuse and specular computation using SH and BRDF LUT.
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║                                                                           ║
+// ║                 IMAGE-BASED LIGHTING (PHASE 20)                          ║
+// ║                                                                           ║
+// ║  Efficient IBL using spherical harmonics (diffuse) and environment      ║
+// ║  maps (specular). Provides free global illumination with minimal        ║
+// ║  computational cost - typically 1-2 texture samples.                    ║
+// ║                                                                           ║
+// ║  Approach: Pre-baked SH coefficients store environment lighting.       ║
+// ║  Runtime: Evaluate SH at surface normal (diffuse) or use split-sum     ║
+// ║  approximation (specular). Works with arbitrary environment maps.      ║
+// ║                                                                           ║
+// ╚═══════════════════════════════════════════════════════════════════════════╝
 
 #ifndef INCLUDE_IBL
 #define INCLUDE_IBL
 
 #include "spherical_harmonics.glsl"
 
-// ===================================================================
-// IBL DIFFUSE
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ IBL DIFFUSE                                                              ║
+// │                                                                           ║
+// │ Computes diffuse indirect lighting from spherical harmonics. Fast,     │
+// │ efficient: evaluates SH coefficients at surface normal direction.      │
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Compute diffuse IBL from SH coefficients
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ iblDiffuse()                                                            ║
+// ║                                                                         ║
+// │ Computes diffuse IBL by evaluating SH at surface normal. Each normal  │
+// │ direction produces unique diffuse color from pre-baked environment.   │
+// │                                                                         ║
+// │ Returns: RGB diffuse indirect lighting (0-1 range typically)          │
+// │                                                                         ║
+// │ Cost: Single SH evaluation (9 coefficients × dot operations)          │
+// │ Typical: 1-2ms on GPU for entire scene                               │
+// └─────────────────────────────────────────────────────────────────────────┘
 vec3 iblDiffuse(vec3 normal, SHCoefficients shCoeff) {
+    // ────────────────────────────────────────────────────────────────────────
+    // Evaluate SH basis functions at normal direction
+    // Returns environment color for diffuse reflection
+    // ────────────────────────────────────────────────────────────────────────
     return evaluateSH(normal, shCoeff);
 }
 

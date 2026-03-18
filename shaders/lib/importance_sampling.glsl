@@ -1,23 +1,41 @@
-// ===================================================================
-// Importance Sampling for BRDF (Phase 19)
-// ===================================================================
-// Importance-weighted sampling strategies for efficient BRDF integration.
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║                                                                           ║
+// ║               IMPORTANCE SAMPLING FOR BRDF (PHASE 19)                    ║
+// ║                                                                           ║
+// ║  Importance-weighted sampling strategies for Cook-Torrance BRDF.        ║
+// ║  Uses GGX microfacet sampling and Fresnel weighting for efficient       ║
+// ║  Monte Carlo integration in path tracing and indirect lighting.         ║
+// ║                                                                           ║
+// ║  Efficiency: Biased sampling toward specular lobes reduces variance,   ║
+// ║  enabling fewer samples for same convergence as uniform sampling.      ║
+// ║                                                                           ║
+// ╚═══════════════════════════════════════════════════════════════════════════╝
 
 #ifndef INCLUDE_IMPORTANCE_SAMPLING
 #define INCLUDE_IMPORTANCE_SAMPLING
 
 #include "halton_sequence.glsl"
 
-// ===================================================================
-// BRDF IMPORTANCE SAMPLING
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ BRDF IMPORTANCE SAMPLING                                                 ║
+// │                                                                           ║
+// │ Cook-Torrance BRDF sampling with GGX microfacet distribution.          │
+// │ Produces direction biased toward specular lobe, with PDF and weight    │
+// │ for Monte Carlo integration.                                             │
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Sample Cook-Torrance microfacet BRDF importance-weighted
-// Returns: direction, PDF, weight
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ BRDFSample (struct)                                                     ║
+// ║                                                                         ║
+// │ Importance-sampled direction with probability and contribution weight │
+// │   direction - Sampled outgoing direction (normalized)                 │
+// │   pdf       - Probability density of this sample                      │
+// │   weight    - Contribution weight (typically 1/pdf for unbiased)     │
+// └─────────────────────────────────────────────────────────────────────────┘
 struct BRDFSample {
-    vec3 direction;
-    float pdf;
-    float weight;
+    vec3 direction;  // Sampled direction
+    float pdf;       // Probability density
+    float weight;    // Contribution weight
 };
 
 BRDFSample sampleCookTorranceBRDF(

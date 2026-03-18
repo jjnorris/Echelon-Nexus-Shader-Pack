@@ -1,17 +1,35 @@
-// ===================================================================
-// Water Refraction & Underwater Effects (Phase 18)
-// ===================================================================
-// Depth-aware refraction and underwater volumetric scattering.
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║                                                                           ║
+// ║             WATER REFRACTION & UNDERWATER EFFECTS (PHASE 18)             ║
+// ║                                                                           ║
+// ║  Depth-aware refraction, underwater absorption, and volumetric          ║
+// ║  effects. Models how light refracts through wavy water surface and      ║
+// ║  how underwater objects appear due to water absorption and scattering.  ║
+// ║                                                                           ║
+// ╚═══════════════════════════════════════════════════════════════════════════╝
 
 #ifndef INCLUDE_WATER_REFRACTION
 #define INCLUDE_WATER_REFRACTION
 
-// ===================================================================
-// UNDERWATER REFRACTION
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ UNDERWATER REFRACTION                                                    ║
+// │                                                                           ║
+// │ Screen-space refraction: distorts view of objects underwater based     │
+// │ on water surface normals. Simulates light bending through wavy surface.│
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Compute refraction offset for viewing underwater
-// Uses depth-based distortion for perspective correction
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ underwaterRefraction()                                                  ║
+// ║                                                                         ║
+// │ Computes screen-space refraction offset from water surface normal.    │
+// │ Distortion strength decreases with depth (deeper = less distortion)  │
+// │ due to caustic damping effect.                                        │
+// │                                                                         ║
+// │ Returns: Refracted screen coordinate for texture sampling             │
+// │                                                                         ║
+// │ Physics: Normal × refractStrength × depthFactor                      │
+// │ depthFactor = e^(-waterDepth × 0.3) exponential damping             │
+// └─────────────────────────────────────────────────────────────────────────┘
 vec2 underwaterRefraction(
     vec2 screenCoord,
     vec2 normalMapUv,
@@ -19,13 +37,21 @@ vec2 underwaterRefraction(
     float waterDepth,
     float refractStrength
 ) {
-    // Refraction strength decreases with depth (caustic effect)
+    // ────────────────────────────────────────────────────────────────────────
+    // Depth factor: refraction dampens with depth (less distortion underwater)
+    // ────────────────────────────────────────────────────────────────────────
     float depthFactor = exp(-waterDepth * 0.3);
 
-    // Normal-based distortion
+    // ────────────────────────────────────────────────────────────────────────
+    // Compute refraction offset from water normal
+    // Normal disturbance scaled by strength and depth
+    // ────────────────────────────────────────────────────────────────────────
     vec2 distortion = waterNormal.xz * refractStrength * depthFactor;
 
-    // Screen-space bounds checking
+    // ────────────────────────────────────────────────────────────────────────
+    // Apply distortion to screen coordinate
+    // Sample will offset based on water surface normal variation
+    // ────────────────────────────────────────────────────────────────────────
     vec2 refractedCoord = screenCoord + distortion;
 
     return refractedCoord;
