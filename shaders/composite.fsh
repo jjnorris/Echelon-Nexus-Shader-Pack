@@ -29,6 +29,7 @@
 #include "lib/screen_space_reflections.glsl"
 #include "lib/optimization_fallbacks.glsl"
 #include "lib/temporal_anti_aliasing.glsl"
+#include "lib/bloom_spectral.glsl"
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ UNIFORM INPUTS                                                            ║
@@ -225,13 +226,54 @@ void main() {
     #endif
 
     // ╔─────────────────────────────────────────────────────────────────────╗
-    // ║ Step 4: Bloom & Spectral Bloom (PHASE 17)                          ║
-    // ║ TODO: Sample prefiltered bloom and apply with spectral separation  ║
+    // ║ Step 4: Bloom & Spectral Rendering (PHASE 14 COMPLETE)            ║
+    // ║                                                                       ║
+    // ║ Apply bloom extraction with multi-level Gaussian pyramid.         ║
+    // ║ Includes spectral dispersion and lens effects. Quality scales     ║
+    // ║ based on BLOOM_QUALITY setting.                                   ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    // Placeholder: No bloom for now (Phase 17)
-    // vec3 bloomColor = sampleBloomPyramid(vTexCoord);
-    // color = applySpectralBloom(color, bloomColor);
+    #ifdef BLOOM_ON
+        // Compute screen size (inverse for sampling)
+        vec2 bloomInvScreenSize = 1.0 / textureSize(colortex0, 0);
+
+        // Determine bloom quality tier
+        int bloomQuality = 1;  // Default: Balanced
+        #ifdef BLOOM_QUALITY_0
+            bloomQuality = 0;  // Fast (1 level, ~2ms)
+        #elif defined(BLOOM_QUALITY_1)
+            bloomQuality = 1;  // Balanced (3 levels, ~4ms)
+        #elif defined(BLOOM_QUALITY_2)
+            bloomQuality = 2;  // High-quality (5 levels, ~6ms)
+        #endif
+
+        // Bloom parameters
+        float bloomThreshold = 1.0;  // HDR luminance threshold
+        float bloomIntensity = 1.0;  // Bloom strength multiplier
+        float bloomRadius = 1.0;     // Blur radius scale
+
+        // Override with shader options if available
+        #ifdef BLOOM_THRESHOLD
+            bloomThreshold = BLOOM_THRESHOLD;
+        #endif
+        #ifdef BLOOM_STRENGTH
+            bloomIntensity = BLOOM_STRENGTH * 1.5;  // Scale to visual intensity
+        #endif
+
+        // Apply bloom
+        vec3 bloomColor = applyBloom(
+            colortex0,
+            vTexCoord,
+            bloomInvScreenSize,
+            bloomThreshold,
+            bloomIntensity,
+            bloomRadius,
+            bloomQuality
+        );
+
+        // Add bloom to color (additive composite)
+        color += bloomColor;
+    #endif
 
     // ╔─────────────────────────────────────────────────────────────────────╗
     // ║ Step 5: Tone Mapping (PHASE 24)                                    ║
