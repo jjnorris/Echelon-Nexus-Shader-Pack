@@ -2,9 +2,11 @@
 
 > **Pursuing Rigorous Photorealism for Minecraft Java Edition 1.21.11**
 
-Echelon Nexus is a production-grade shader pack built on rigorous physically-based rendering (PBR) principles, modular architecture, and scalable quality tiers. Designed to work seamlessly with the accompanying **Echelon Nexus Texture Pack**, this shader pack prioritizes **photorealistic light behavior**, **accurate optical physics**, and **architectural cohesion**.creating visuals that feel genuinely real while maintaining Minecraft's iconic blocky aesthetic. Built for a complete realism experience combining shader and texture assets, Echelon Nexus delivers photorealism across five hardware tiers from integrated graphics to RTX workstations.
+Echelon Nexus is a production-grade shader pack built on rigorous physically-based rendering (PBR) principles, modular architecture, and scalable quality tiers. Designed to work seamlessly with the accompanying **Echelon Nexus Texture Pack**, this shader pack prioritizes **photorealistic light behavior**, **accurate optical physics**, and **architectural cohesion**. Creating visuals that feel genuinely real while maintaining Minecraft's iconic blocky aesthetic. Built for a complete realism experience combining shader and texture assets, Echelon Nexus delivers photorealism across five hardware tiers from integrated graphics to RTX workstations.
 
 **Version**: 2.0.0 | **Status**: Production Ready | **Last Updated**: March 2026
+
+**Development**: This project was developed with AI assistance.
 
 ---
 
@@ -16,12 +18,12 @@ Minecraft deserves lighting that respects photorealistic principles while adapti
 - **Photorealistic Material Systems**: LabPBR support for accurate metallics, dielectrics, roughness, and emissive materials
 - **Modular Architecture**: 160+ documented systems across 29 development phases for maintainability and scalability
 - **Scalable Quality Tiers**: From integrated graphics (60 FPS) to cinema-quality rendering (30+ FPS), all achieving photorealistic results
-- **Optical Physics Accuracy**: Gerstner waves, spectral effects, thin-film interference, subsurface scattering, and atmospheric scattering.all based on real optics
+- **Optical Physics Accuracy**: Gerstner waves, spectral effects, thin-film interference, subsurface scattering, and atmospheric scattering. All based on real optics
 - **Texture Pack Integration**: Designed from inception to work with the Echelon Nexus Texture Pack for cohesive, photorealistic worlds
 - **Artist-Friendly Configuration**: 100+ adjustable parameters with sensible presets for different photorealism aesthetics
 - **Zero Technical Debt**: Comprehensive documentation for every function, formula, and design decision
 
-Echelon Nexus **pursues photorealism rigorously**.not through brute-force computing power, but through respect for optical physics, careful material encoding, and integration with complementary texture assets. The result is a complete visual system (shader + textures) that looks authentically real while honoring Minecraft's blocky, modular nature.
+Echelon Nexus **pursues photorealism rigorously**. Not through brute-force computing power, but through respect for optical physics, careful material encoding, and integration with complementary texture assets. The result is a complete visual system (shader + textures) that looks authentically real while honoring Minecraft's blocky, modular nature.
 
 ---
 
