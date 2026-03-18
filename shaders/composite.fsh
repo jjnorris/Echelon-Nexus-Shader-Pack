@@ -28,6 +28,7 @@
 #include "lib/viewport.glsl"
 #include "lib/screen_space_reflections.glsl"
 #include "lib/optimization_fallbacks.glsl"
+#include "lib/temporal_anti_aliasing.glsl"
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ UNIFORM INPUTS                                                            ║
@@ -182,13 +183,46 @@ void main() {
     #endif
 
     // ╔─────────────────────────────────────────────────────────────────────╗
-    // ║ Step 3: Temporal Anti-Aliasing (PHASE 15)                          ║
-    // ║ TODO: Implement Halton jitter and history blending                 ║
+    // ║ Step 3: Temporal Anti-Aliasing (PHASE 13 COMPLETE)                 ║
+    // ║                                                                       ║
+    // ║ Apply TAA with Halton jittering and variance clamping for smooth  ║
+    // ║ edges without blur. Quality scales based on TAA_QUALITY setting.   ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    // Placeholder: No TAA for now (Phase 15)
-    // vec3 taaColor = applySampleTAA(color, vTexCoord, frameCounter);
-    // color = mix(color, taaColor, 0.8);
+    #ifdef TAA_ON
+        // Read history color from previous frame
+        vec4 historyData = texture(colortex3, vTexCoord);
+        vec3 historyColor = historyData.rgb;
+
+        // Determine TAA quality tier
+        int taaQuality = 1;  // Default: Balanced
+        #ifdef TAA_QUALITY_0
+            taaQuality = 0;  // Fast (2x jitter)
+        #elif defined(TAA_QUALITY_1)
+            taaQuality = 1;  // Balanced (4x jitter)
+        #elif defined(TAA_QUALITY_2)
+            taaQuality = 2;  // High-quality (8x jitter)
+        #endif
+
+        // Compute screen size (inverse for jitter calculations)
+        vec2 screenSize = 1.0 / fwidth(vTexCoord);
+        vec2 invScreenSize = 1.0 / screenSize;
+
+        // Apply temporal anti-aliasing
+        vec3 taaColor = applyTemporalAntiAliasing(
+            color,
+            historyColor,
+            frameCounter,
+            vTexCoord,
+            invScreenSize,
+            colortex0,
+            taaQuality
+        );
+
+        // Blend with current frame (TAA already does blending, but we can
+        // add extra blending for more stability on high-motion frames)
+        color = mix(color, taaColor, 0.7);
+    #endif
 
     // ╔─────────────────────────────────────────────────────────────────────╗
     // ║ Step 4: Bloom & Spectral Bloom (PHASE 17)                          ║
