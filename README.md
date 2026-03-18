@@ -4,9 +4,15 @@
 
 Echelon Nexus is a production-grade shader pack built on rigorous physically-based rendering (PBR) principles, modular architecture, and scalable quality tiers. Designed to work seamlessly with the accompanying **Echelon Nexus Texture Pack**, this shader pack prioritizes **photorealistic light behavior**, **accurate optical physics**, and **architectural cohesion**. Creating visuals that feel genuinely real while maintaining Minecraft's iconic blocky aesthetic. Built for a complete realism experience combining shader and texture assets, Echelon Nexus delivers photorealism across five hardware tiers from integrated graphics to RTX workstations.
 
-**Version**: 2.0.0 | **Status**: Production Ready | **Last Updated**: March 2026
+**Version**: 2.0.0 (Alpha) | **Status**: Phase 1-5 Complete, Phase 6+ Library Code Ready | **Last Updated**: March 2026
 
 **Development**: This project was developed with AI assistance.
+
+### ⚠️ Current Implementation Status
+- ✅ **Phases 1-5**: Core deferred rendering pipeline fully implemented and functional
+- 📚 **Phases 6-29**: Library code written (20+ advanced features), integration in progress
+- 🎯 **Next Priority**: Shadow mapping integration (Phase 6-9)
+- See IMPLEMENTATION_ROADMAP.md for detailed progress tracking
 
 ---
 
