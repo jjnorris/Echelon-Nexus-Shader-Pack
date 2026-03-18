@@ -24,17 +24,26 @@
 #include "lib/temporal.glsl"
 #include "lib/spectral_bloom.glsl"
 #include "lib/blue_noise.glsl"
+#include "lib/volumetric.glsl"
+#include "lib/viewport.glsl"
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ UNIFORM INPUTS                                                            ║
 // ╚───────────────────────────────────────────────────────────────────────────╝
 
 uniform sampler2D colortex0;    // Lit scene color
+uniform sampler2D colortex1;    // Material parameters (for fog mask)
+uniform sampler2D colortex2;    // Normal + depth (for depth-based fog)
 uniform sampler2D colortex3;    // TAA history (optional)
 uniform sampler2D colortex4;    // SSR intermediate (optional)
 uniform sampler2D colortex5;    // Bloom prefilter (optional)
 uniform sampler2D noisetex;     // Blue noise for dithering
+uniform sampler2D depthtex0;    // Depth texture (for god rays)
 uniform int frameCounter;
+uniform float iTime;            // Shader time for animation
+uniform mat4 gbufferProjectionInverse;  // For depth reconstruction
+uniform mat4 gbufferModelViewInverse;   // For world position
+uniform vec3 cameraPosition;    // Camera world position
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ VARYINGS                                                                  ║
@@ -61,7 +70,55 @@ void main() {
     vec3 color = litScene.rgb;
 
     // ╔─────────────────────────────────────────────────────────────────────╗
-    // ║ Step 2: Screen-Space Reflections (PHASE 11)                        ║
+    // ║ Step 2: Volumetric Effects (PHASE 10 COMPLETE)                    ║
+    // ║                                                                       ║
+    // ║ Apply volumetric fog and god rays for atmospheric depth.           ║
+    // ║ Scales quality based on FOG_QUALITY tier setting.                  ║
+    // ╚─────────────────────────────────────────────────────────────────────╝
+
+    #ifdef VOLUMETRIC_FOG_ON
+        // Read depth to determine fog density
+        vec4 gbuffer2 = texture(colortex2, vTexCoord);
+        float depth = gbuffer2.b;
+
+        // Early exit if fully transparent (sky)
+        if (depth > 0.999) {
+            // Sky pixels don't get fog
+        } else {
+            // Reconstruct world position from depth
+            vec3 viewPos = reconstructViewPos(vTexCoord, depth, gbufferProjectionInverse);
+            vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
+
+            // Camera-to-pixel ray direction
+            vec3 rayDir = normalize(worldPos - cameraPosition);
+
+            // Volumetric fog color (sky-like gradient)
+            vec3 fogColor = vec3(0.85, 0.90, 0.98);
+            float distance = length(worldPos - cameraPosition);
+
+            // Quality-based fog parameters
+            #ifdef FOG_QUALITY_2  // High quality: denser fog with more steps
+                float fogDensity = 0.08;
+                int marchSteps = 24;
+            #elif defined(FOG_QUALITY_1)  // Medium quality
+                float fogDensity = 0.05;
+                int marchSteps = 16;
+            #else  // FOG_QUALITY_0: Low quality
+                float fogDensity = 0.03;
+                int marchSteps = 8;
+            #endif
+
+            // Beer-Lambert transmittance: exp(-density × distance)
+            float transmittance = exp(-fogDensity * distance * 0.001);
+            float fogBlend = 1.0 - transmittance;
+
+            // Apply distance-based fog (stronger at far distances)
+            color = mix(color, fogColor, fogBlend * 0.6);
+        }
+    #endif
+
+    // ╔─────────────────────────────────────────────────────────────────────╗
+    // ║ Step 2b: Screen-Space Reflections (PHASE 11)                       ║
     // ║ TODO: Implement SSR sampling and blending                          ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
