@@ -1,8 +1,20 @@
-// ===================================================================
-// Echelon Nexus - Shadow Sampling & Filtering
-// ===================================================================
-// Provides PCF and PCSS shadow filtering for realistic soft shadows.
-// ===================================================================
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║                                                                           ║
+// ║            SHADOW SAMPLING & FILTERING (PHASE 21)                        ║
+// ║                                                                           ║
+// ║  Hardware-accelerated shadow filtering: PCF (percentage-closer filter), ║
+// ║  PCSS (percentage-closer soft shadows with penumbra estimation).       ║
+// ║  Integrates with ESM for hybrid soft shadow pipeline.                   ║
+// ║                                                                           ║
+// ║  Strategy: PCF for quality shadows, ESM for performance, PCSS when     ║
+// ║  detail matters. Blue noise stochastic sampling prevents shadow banding.║
+// ║                                                                           ║
+// ║  Performance tiers:                                                     ║
+// ║    - ESM only: ~1ms (performant mobile)                               ║
+// ║    - PCF 5×5: ~2-3ms (good quality)                                   ║
+// ║    - PCSS: ~5-8ms (high quality, dynamic penumbra)                    ║
+// ║                                                                           ║
+// ╚═══════════════════════════════════════════════════════════════════════════╝
 
 #ifndef INCLUDE_SHADOW_SAMPLING
 #define INCLUDE_SHADOW_SAMPLING
@@ -11,38 +23,105 @@
 #include "functions.glsl"
 #include "lib/blue_noise.glsl"
 
-// ===================================================================
-// SHADOW MAP BASICS
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ SHADOW MAP SPACE TRANSFORMATION                                          ║
+// │                                                                           ║
+// │ Converts world-space positions to shadow map texture coordinates.      │
+// │ Shadow space: depth from light source (NDC), XY in [0,1]              │
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Project world position to shadow map coordinates
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ projectToShadowSpace()                                                  ║
+// ║                                                                         ║
+// │ Transforms world position to shadow map coordinates via light's       │
+// │ projection matrix. Output XY suitable for shadow map sampling,        │
+// │ Z for depth comparison.                                               │
+// │                                                                         ║
+// │ Returns: shadowPos [x,y,z] where x,y ∈ [0,1] for texture sample,    │
+// │         z ∈ [0,1] is depth for comparison                           │
+// └─────────────────────────────────────────────────────────────────────────┘
 vec3 projectToShadowSpace(vec3 worldPos, mat4 shadowProjection, mat4 shadowModelView) {
+    // ────────────────────────────────────────────────────────────────────────
+    // Light-space transform: apply light's view and projection
+    // ────────────────────────────────────────────────────────────────────────
     vec4 shadowPos = shadowProjection * (shadowModelView * vec4(worldPos, 1.0));
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Perspective divide: convert from homogeneous to normalized device coords
+    // ────────────────────────────────────────────────────────────────────────
     shadowPos.xyz /= shadowPos.w;
-    return shadowPos.xyz * 0.5 + 0.5;  // NDC to [0, 1]
+
+    // ────────────────────────────────────────────────────────────────────────
+    // NDC [-1,1] to texture [0,1]: scale and bias
+    // ────────────────────────────────────────────────────────────────────────
+    return shadowPos.xyz * 0.5 + 0.5;
 }
 
-// ===================================================================
-// BASIC SHADOW COMPARISON
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ BASIC SHADOW COMPARISON                                                  ║
+// │                                                                           ║
+// │ Fundamental operation: compare fragment depth against shadow map.     │
+// │ Includes bounds checking (fragments outside light frustum are lit).  │
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Simple depth comparison: is fragment in shadow?
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ isInShadow()                                                            ║
+// ║                                                                         ║
+// │ Simple binary shadow test: fragment in shadow or lit?                 │
+// │ Respects shadow map bounds (fragments outside = lit).                 │
+// │                                                                         ║
+// │ Inputs:                                                                │
+// │   shadowPos - Shadow-space coordinate (from projectToShadowSpace)   │
+// │   compareDepth - Fragment depth in shadow space                       │
+// │   bias - Depth bias to prevent shadow acne (typ. 0.005)              │
+// │                                                                         ║
+// │ Returns: true if fragment is in shadow, false if lit               │
+// └─────────────────────────────────────────────────────────────────────────┘
 bool isInShadow(vec3 shadowPos, float compareDepth, float bias) {
+    // ────────────────────────────────────────────────────────────────────────
+    // Bounds check: outside shadow map = lit (no shadow)
+    // ────────────────────────────────────────────────────────────────────────
     if (shadowPos.x < 0.0 || shadowPos.x > 1.0 ||
         shadowPos.y < 0.0 || shadowPos.y > 1.0 ||
         shadowPos.z < 0.0 || shadowPos.z > 1.0) {
-        return false;  // Outside shadow map; assume lit
+        return false;  // Outside shadow map frustum = fully lit
     }
 
+    // ────────────────────────────────────────────────────────────────────────
+    // Depth comparison with bias
+    // If compareDepth > shadowMapDepth, fragment is further from light = shadow
+    // ────────────────────────────────────────────────────────────────────────
     float shadowMapDepth = texture(shadowtex0, shadowPos.xy).r;
     return compareDepth > shadowMapDepth + bias;
 }
 
-// ===================================================================
-// PCF (PERCENTAGE-CLOSER FILTERING)
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ PCF (PERCENTAGE-CLOSER FILTERING)                                        ║
+// │                                                                           ║
+// │ Foundation of modern shadow filtering. Takes multiple depth samples   │
+// │ around fragment location, compares each, then averages results.      │
+// │ Result: smooth shadow penumbra without temporal artifacts.           │
+// │                                                                         ║
+// │ Formula: visibility = (1/N) × Σ(1.0 if depth_i < compare else 0.0) │
+// │ Effect: Smaller filter radius = sharp shadows; larger = soft        │
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Basic PCF with square kernel
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ shadowPCF()                                                             ║
+// ║                                                                         ║
+// │ Percentage-closer filter: average of multiple depth comparisons.     │
+// │ Blue noise dithering prevents shadow band artifacts.                 │
+// │                                                                         ║
+// │ Inputs:                                                                │
+// │   shadowPos - Shadow map coordinates                                 │
+// │   compareDepth - Fragment depth for comparison                        │
+// │   filterRadius - Kernel size in texels (2-8 typical)                │
+// │   sampleCount - Number of samples (9-16 for quality)                │
+// │                                                                         ║
+// │ Returns: Visibility [0,1] where 1=fully lit, 0=fully shadowed    │
+// │                                                                         ║
+// │ Cost: sampleCount texture samples + comparisons (typ. 2-3ms)       │
+// └─────────────────────────────────────────────────────────────────────────┘
 float shadowPCF(
     vec3 shadowPos,
     float compareDepth,

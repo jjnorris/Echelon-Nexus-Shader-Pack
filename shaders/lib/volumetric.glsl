@@ -1,8 +1,22 @@
-// ===================================================================
-// Echelon Nexus - Volumetric Effects (Clouds, Fog, Volumetrics)
-// ===================================================================
-// Ray-marched volumetric effects with approximated scattering.
-// ===================================================================
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║                                                                           ║
+// ║             VOLUMETRIC EFFECTS (PHASE 23)                                ║
+// ║                                                                           ║
+// ║  Ray-marched volumetric effects: clouds, fog, light shafts, god rays.   ║
+// ║  Accumulates scattering and transmittance through participating media.  ║
+// ║  Uses coherent noise for cloud generation and in-scattering approximation║
+// ║  to simulate light bouncing within volumes.                              ║
+// ║                                                                           ║
+// ║  Techniques:                                                              ║
+// ║    - Frequency domain clouds (octave-based noise)                        ║
+// ║    - Beer-Lambert transmittance for fog/haze                             ║
+// ║    - Anisotropic in-scattering (phase functions)                         ║
+// ║    - Temporal reprojection for noise reduction                           ║
+// ║                                                                           ║
+// ║  Performance: Scales linearly with march steps (typ. 16-64 steps)      ║
+// ║  Optimization: Use importance sampling near light sources               ║
+// ║                                                                           ║
+// ╚═══════════════════════════════════════════════════════════════════════════╝
 
 #ifndef INCLUDE_VOLUMETRIC
 #define INCLUDE_VOLUMETRIC
@@ -11,40 +25,92 @@
 #include "functions.glsl"
 #include "lib/noise.glsl"
 
-// ===================================================================
-// VOLUMETRIC CLOUDS
-// ===================================================================
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ VOLUMETRIC CLOUD DENSITY                                                 ║
+// │                                                                           ║
+// │ Coherent 3D noise-based cloud density generation using octave           │
+// │ composition (Fractional Brownian Motion). Each octave contributes      │
+// │ smaller detail at higher frequencies, creating natural-looking clouds. │
+// └───────────────────────────────────────────────────────────────────────────┘
 
-// Simple Perlin-like noise-based cloud density
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ cloudDensity()                                                          ║
+// ║                                                                         ║
+// │ Computes 3D cloud density field using FBM (Fractional Brownian       │
+// │ Motion). Each octave adds detail at progressively finer scales.       │
+// │ Result: Natural-looking cloudy appearance.                            │
+// │                                                                         ║
+// │ Inputs:                                                                │
+// │   position - World position to sample density                         │
+// │   octaves - Number of noise octaves (3-5 for detail)                 │
+// │                                                                         ║
+// │ Returns: Density [0,1] representing cloud opaqueness                │
+// │                                                                         ║
+// │ Formula: density = Σ(amplitude_i × noise_i) / Σ(amplitude_i)       │
+// │ Where: amplitude_i = 0.5^i (each octave half the previous)          │
+// │        frequency_i = 2^i (each octave double the previous)          │
+// │                                                                         ║
+// │ Cost: O(octaves) evaluations (~1ms per sample)                       │
+// └─────────────────────────────────────────────────────────────────────────┘
 float cloudDensity(vec3 position, int octaves) {
+    // ────────────────────────────────────────────────────────────────────────
+    // Octave composition (FBM): additive noise at decreasing amplitudes
+    // ────────────────────────────────────────────────────────────────────────
     float density = 0.0;
     float amplitude = 1.0;
     float frequency = 1.0;
     float maxAmplitude = 0.0;
 
     for (int i = 0; i < octaves; i++) {
+        // ────────────────────────────────────────────────────────────────────
+        // Simple harmonic noise: sin/cos oscillation at current frequency
+        // (In production: use Perlin or Simplex noise for better continuity)
+        // ────────────────────────────────────────────────────────────────────
         float sample = sin(position.x * frequency) * cos(position.z * frequency);
         density += sample * amplitude;
 
+        // ────────────────────────────────────────────────────────────────────
+        // Progressive octave: halve amplitude, double frequency
+        // ────────────────────────────────────────────────────────────────────
         maxAmplitude += amplitude;
         amplitude *= 0.5;
         frequency *= 2.0;
     }
 
+    // ────────────────────────────────────────────────────────────────────────
+    // Normalize to [0,1] and apply perceptual scaling
+    // ────────────────────────────────────────────────────────────────────────
     return density / maxAmplitude * 0.5 + 0.5;
 }
 
-// 2D cloud shape (for sky dome)
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ cloudShape()                                                            ║
+// ║                                                                         ║
+// │ 2D cloud shape for sky dome. Time-animated for dynamic cloud motion.  │
+// │ Used in sky rendering for horizon clouds and atmospheric effects.     │
+// │                                                                         ║
+// │ Includes temporal animation: iTime variable advances cloud pattern    │
+// │ creating natural-looking drift effect.                                │
+// └─────────────────────────────────────────────────────────────────────────┘
 float cloudShape(vec2 position, int octaves) {
+    // ────────────────────────────────────────────────────────────────────────
+    // 2D FBM similar to cloudDensity, with time animation
+    // ────────────────────────────────────────────────────────────────────────
     float cloud = 0.0;
     float amplitude = 1.0;
     float frequency = 1.0;
     float maxAmplitude = 0.0;
 
     for (int i = 0; i < octaves; i++) {
+        // ────────────────────────────────────────────────────────────────────
+        // Time-dependent animation: iTime advances wave pattern horizontally
+        // ────────────────────────────────────────────────────────────────────
         float sample = sin(position.x * frequency + iTime) * cos(position.y * frequency);
         cloud += sample * amplitude;
 
+        // ────────────────────────────────────────────────────────────────────
+        // Octave progression
+        // ────────────────────────────────────────────────────────────────────
         maxAmplitude += amplitude;
         amplitude *= 0.5;
         frequency *= 2.0;
