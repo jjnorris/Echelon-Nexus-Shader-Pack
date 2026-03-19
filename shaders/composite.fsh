@@ -94,11 +94,8 @@ void main() {
     // ║ and improves cache locality.                                       ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    // DEBUG: Output gbuffer2 (normals + depth) to see if terrain is being rendered
-    vec4 debugGBuffer2 = texture(colortex2, vTexCoord);
-
-    // Output raw depth (should be 0-1, brighter = further away)
-    colortex0_out = vec4(vec3(debugGBuffer2.b), 1.0);
+    // TEST: Output solid color to verify shader is running
+    colortex0_out = vec4(1.0, 0.0, 0.0, 1.0); // Red
     return;
 
     // Single read of lit scene
