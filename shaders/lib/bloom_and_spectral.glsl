@@ -268,52 +268,8 @@ vec3 upsampleBlur(
 // │ Splits light into component colors for realistic bloom appearance. ║
 // └───────────────────────────────────────────────────────────────────────────┘
 
-// ╔─────────────────────────────────────────────────────────────────────────╗
-// ║ chromaticAberration()                                                   ║
-// ║                                                                         ║
-// │ Simulate chromatic aberration (RGB light separation).              │
-// │ Creates rainbow-like fringes at high-contrast edges.             │
-// │                                                                       │
-// │ Physics: Different wavelengths refract differently through        │
-// │ lenses, causing red/green/blue to separate slightly.            │
-// │                                                                       │
-// │ Algorithm:                                                            │
-// │   1. Sample R at UV - offset (red shifts backward)               │
-// │   2. Sample G at UV (green in center)                           │
-// │   3. Sample B at UV + offset (blue shifts forward)              │
-// │   4. Combine RGB channels with separation                       │
-// │                                                                       │
-// │ Inputs:                                                              │
-// │   tex - Texture to sample                                      │
-// │   uv - Texture coordinate                                      │
-// │   aberrationStrength - Amount of separation (0.0-0.02)         │
-// │                                                                       │
-// │ Returns: Color with chromatic aberration applied                │
-// │                                                                       │
-// │ Visual effect:                                                       │
-// │   Off: Normal bloom                                             │
-// │   On: Rainbow fringes at edges (very small, subtle)            │
-// └─────────────────────────────────────────────────────────────────────┘
-#ifndef INCLUDE_CHROMATIC_ABERRATION_SAMPLER_VARIANT
-#define INCLUDE_CHROMATIC_ABERRATION_SAMPLER_VARIANT
-vec3 chromaticAberration(
-    sampler2D tex,
-    vec2 uv,
-    float aberrationStrength
-) {
-    // Offset direction: away from screen center
-    vec2 center = vec2(0.5);
-    vec2 direction = normalize(uv - center);
-    vec2 offset = direction * aberrationStrength;
-
-    // Sample RGB at offset positions
-    float r = texture(tex, uv - offset).r;
-    float g = texture(tex, uv).g;
-    float b = texture(tex, uv + offset).b;
-
-    return vec3(r, g, b);
-}
-#endif  // INCLUDE_CHROMATIC_ABERRATION_SAMPLER_VARIANT
+// NOTE: chromaticAberration() is defined in post_processing.glsl
+// We use that version instead to avoid duplicate definitions
 
 // ╔─────────────────────────────────────────────────────────────────────────╗
 // ║ spectralShift()                                                         ║

@@ -144,6 +144,8 @@ vec3 applyDOF(
 // ===================================================================
 
 // Simple chromatic aberration
+#ifndef INCLUDE_CHROMATIC_ABERRATION
+#define INCLUDE_CHROMATIC_ABERRATION
 vec3 chromaticAberration(
     sampler2D tex,
     vec2 texCoord,
@@ -157,6 +159,7 @@ vec3 chromaticAberration(
 
     return vec3(colorR.r, color.g, colorB.b);
 }
+#endif  // INCLUDE_CHROMATIC_ABERRATION
 
 // ===================================================================
 // VIGNETTE
