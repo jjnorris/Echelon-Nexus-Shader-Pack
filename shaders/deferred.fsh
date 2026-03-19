@@ -136,10 +136,51 @@ void main() {
     // Initialize light accumulator
     vec3 directLight = vec3(0.0);
 
+    // ╔─────────────────────────────────────────────────────────────────────╗
+    // ║ PHASE 1: DYNAMIC SUN/MOON DIRECTION CALCULATION                    ║
+    // ║                                                                       ║
+    // ║ Calculate sun position from Minecraft time (worldTime uniform)      ║
+    // ║ Maps 0-24000 ticks to 0-360 degrees orbital position               ║
+    // ║                                                                       ║
+    // ║ TODO: Receive worldTime uniform from shader framework              ║
+    // ║ For now, using fixed position approximation                        ║
+    // ╚─────────────────────────────────────────────────────────────────────╝
+
+    // Calculate sun angle based on time of day (0-1 normalized)
+    // In Minecraft: 0 = sunrise, 6000 = noon, 12000 = sunset, 18000 = midnight
+    // Using approximation: time cycles 0->24000 (one full day)
+    // TODO: Add uniform "uniform int worldTime;" to get actual time
+    float timeOfDay = mod(float(frameCounter) * 0.01, 1.0);  // Placeholder
+    float sunAngle = timeOfDay * 6.28318530718;  // 0 to 2π radians
+
+    // Calculate sun direction in world space
+    // Y-axis: zenith angle (0 at horizon, π/2 at zenith)
+    // XZ-plane: horizontal rotation (sunrise to sunset arc)
+    vec3 sunDirection = normalize(vec3(
+        sin(sunAngle),                          // Horizontal rotation
+        max(sin(sunAngle - 1.5708), -0.2),      // Zenith angle (clamped above horizon)
+        cos(sunAngle)                           // Horizontal rotation
+    ));
+
     // Sun light (main directional light)
     Light sunlight;
-    sunlight.direction = normalize(vec3(0.5, 0.8, 0.2));  // TODO: Get from uniform in Phase 6
-    sunlight.radiance = vec3(1.0, 0.95, 0.8) * 0.8;      // Slightly warm daylight (reduced intensity)
+    sunlight.direction = sunDirection;
+
+    // Time-of-day aware color: warm at sunrise/sunset, cool at noon
+    // Use cosine wave to smoothly transition between colors
+    float sunHeight = max(sunDirection.y, 0.0);  // 0 (horizon) to 1 (zenith)
+    float sunWarmth = cos(sunAngle);  // -1 to 1, warm at sunrise/sunset
+
+    // Sunrise/sunset: warm orange (1.0, 0.7, 0.4)
+    // Noon: cool white (1.0, 0.95, 0.8)
+    // Transition smoothly based on sun height
+    vec3 sunColor = mix(
+        vec3(1.0, 0.6, 0.2),          // Warm sunset colors
+        vec3(1.0, 0.95, 0.8),         // Cool daylight
+        smoothstep(-0.2, 0.3, sunHeight)
+    );
+
+    sunlight.radiance = sunColor * 0.8;  // Slightly reduced intensity
 
     // ╔─────────────────────────────────────────────────────────────────────╗
     // ║ Compute Shadow Factor (PHASE 6-9 COMPLETE)                          ║
@@ -183,11 +224,36 @@ void main() {
     directLight += sunContrib;
 
     // ╔─────────────────────────────────────────────────────────────────────╗
-    // ║ Step 5: Ambient Lighting (PHASE 5, placeholder for Phase 20 IBL)   ║
+    // ║ Step 5: Ambient Lighting (PHASE 1 - IMPROVED BASELINE)             ║
+    // ║                                                                       ║
+    // ║ Directional ambient based on:                                      ║
+    // ║   - Sky color (time-of-day aware)                                 ║
+    // ║   - Surface normal orientation (upward faces get more light)      ║
+    // ║   - Minimum ambient for dark areas (prevent total black)          ║
+    // ║                                                                       ║
+    // ║ This is better than flat ambient, will be upgraded to              ║
+    // ║ spherical harmonics IBL in Phase 20.                               ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    vec3 ambientLight = albedo * 0.08;  // Simple flat ambient (reduced)
-    // TODO Phase 20: Replace with spherical harmonics IBL
+    // Sky color based on sun height (time of day aware)
+    float ambientBrightness = mix(0.3, 1.0, sunHeight);  // Darker at night
+    vec3 ambientSkyColor = mix(
+        vec3(0.2, 0.3, 0.4),      // Dark night sky (slight blue)
+        vec3(0.87, 0.92, 1.0),    // Bright day sky (light blue)
+        smoothstep(-0.2, 0.3, sunHeight)
+    );
+
+    // Directional ambient: upward-facing surfaces get more sky light
+    // dot(normal, UP) = 1 for upward, -1 for downward
+    // Modulate ambient by surface orientation
+    float skyInfluence = mix(0.3, 1.0, normal.y * 0.5 + 0.5);
+
+    // Combine ambient components
+    vec3 ambientLight = albedo * ambientSkyColor * ambientBrightness * skyInfluence * 0.5;
+
+    // Add minimum ambient to prevent complete darkness in shadows
+    vec3 minAmbient = albedo * 0.05;  // 5% minimum brightness
+    ambientLight = max(ambientLight, minAmbient);
 
     // ╔─────────────────────────────────────────────────────────────────────╗
     // ║ Step 6: Emissive (PHASE 5)                                         ║
