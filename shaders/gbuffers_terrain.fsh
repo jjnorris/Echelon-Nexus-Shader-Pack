@@ -47,10 +47,10 @@ layout(location = 2) out vec4 colortex2;  // Normals + depth
 // ===================================================================
 
 void main() {
-    // Step 1: Alpha test
-    if (!alphaTest(vTexCoord, 0.5)) {
-        discard;
-    }
+    // Step 1: Alpha test (DISABLED for debugging)
+    // if (!alphaTest(vTexCoord, 0.5)) {
+    //     discard;
+    // }
 
     // Step 2: Sample and decode material
     // Use LabPBR format by default (pbrMode=0)

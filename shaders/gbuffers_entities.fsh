@@ -29,9 +29,10 @@ layout(location = 1) out vec4 colortex1;
 layout(location = 2) out vec4 colortex2;
 
 void main() {
-    if (!alphaTest(vTexCoord, 0.5)) {
-        discard;
-    }
+    // DISABLED for debugging
+    // if (!alphaTest(vTexCoord, 0.5)) {
+    //     discard;
+    // }
 
     Material material = sampleMaterialComplete(
         vTexCoord,
