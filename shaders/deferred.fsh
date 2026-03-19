@@ -30,8 +30,13 @@
 uniform sampler2D colortex0;  // G-buffer 0: Albedo (RGB) + Alpha
 uniform sampler2D colortex1;  // G-buffer 1: Material (roughness, metallic, emissive)
 uniform sampler2D colortex2;  // G-buffer 2: Normal (oct-encoded) + Depth
-uniform sampler2DShadow shadowtex0;  // Shadow map
+uniform sampler2D shadowtex0;  // Shadow map (use as 2D, not shadow comparison)
 uniform sampler2D noisetex;   // Blue noise for dithering
+
+// Built-in uniforms provided by Iris/Minecraft
+uniform mat4 gbufferProjectionInverse;  // Inverse of camera projection
+uniform mat4 gbufferModelViewInverse;   // Inverse of camera model-view
+uniform vec3 cameraPosition;            // Camera position in world space
 
 // Shadow mapping uniforms (provided by Iris)
 uniform mat4 shadowProjection;    // Light's projection matrix

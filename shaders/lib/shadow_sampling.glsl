@@ -76,24 +76,9 @@ vec3 projectToShadowSpace(vec3 worldPos, mat4 shadowProjection, mat4 shadowModel
 // │   bias - Depth bias to prevent shadow acne (typ. 0.005)              │
 // │                                                                         ║
 // │ Returns: true if fragment is in shadow, false if lit               │
+// │                                                                         ║
+// │ NOTE: isInShadow is defined in lighting_common.glsl to avoid duplication
 // └─────────────────────────────────────────────────────────────────────────┘
-bool isInShadow(vec3 shadowPos, float compareDepth, float bias) {
-    // ────────────────────────────────────────────────────────────────────────
-    // Bounds check: outside shadow map = lit (no shadow)
-    // ────────────────────────────────────────────────────────────────────────
-    if (shadowPos.x < 0.0 || shadowPos.x > 1.0 ||
-        shadowPos.y < 0.0 || shadowPos.y > 1.0 ||
-        shadowPos.z < 0.0 || shadowPos.z > 1.0) {
-        return false;  // Outside shadow map frustum = fully lit
-    }
-
-    // ────────────────────────────────────────────────────────────────────────
-    // Depth comparison with bias
-    // If compareDepth > shadowMapDepth, fragment is further from light = shadow
-    // ────────────────────────────────────────────────────────────────────────
-    float shadowMapDepth = texture(shadowtex0, shadowPos.xy).r;
-    return compareDepth > shadowMapDepth + bias;
-}
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ PCF (PERCENTAGE-CLOSER FILTERING)                                        ║

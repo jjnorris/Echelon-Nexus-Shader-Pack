@@ -41,26 +41,8 @@ float linearizeDepthWithMatrix(float ndcDepth, mat4 projection) {
 // VIEW SPACE POSITION RECONSTRUCTION
 // ===================================================================
 
-// Reconstruct view-space position from screen coordinates and depth
-vec3 reconstructViewPos(vec2 screenCoord, float depth, mat4 projectionInv) {
-    // Convert screen coordinates to NDC [-1, 1]
-    vec4 ndc = vec4(screenCoord * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-
-    // Transform from NDC to view space using inverse projection
-    vec4 viewPos = projectionInv * ndc;
-
-    // Divide by w to get actual view position
-    return viewPos.xyz / viewPos.w;
-}
-
-// ===================================================================
-// WORLD SPACE POSITION RECONSTRUCTION
-// ===================================================================
-
-// Reconstruct world-space position from view position and inverse view matrix
-vec3 reconstructWorldPos(vec3 viewPos, mat4 viewInv) {
-    return (viewInv * vec4(viewPos, 1.0)).xyz;
-}
+// NOTE: reconstructViewPos and reconstructWorldPos are defined in functions.glsl
+// to avoid duplication. This file provides extended utilities that depend on them.
 
 // Combined: screen coords + depth → world position
 vec3 reconstructWorldPosFromScreen(
