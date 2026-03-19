@@ -405,6 +405,8 @@ vec3 spectralDispersion(
 // │                                                                       │
 // │ Returns: Aberrated color                                         │
 // └─────────────────────────────────────────────────────────────────────┘
+#ifndef INCLUDE_CHROMATIC_ABERRATION_EXTENDEDPARAMS_VARIANT
+#define INCLUDE_CHROMATIC_ABERRATION_EXTENDEDPARAMS_VARIANT
 vec3 chromaticAberration(
     sampler2D tex,
     vec2 uv,
@@ -436,6 +438,7 @@ vec3 chromaticAberration(
     // ────────────────────────────────────────────────────────────────────────
     return vec3(r, g, b);
 }
+#endif  // INCLUDE_CHROMATIC_ABERRATION_EXTENDEDPARAMS_VARIANT
 
 // ╔─────────────────────────────────────────────────────────────────────────╗
 // ║ lensDirt()                                                              ║

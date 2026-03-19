@@ -294,6 +294,8 @@ vec3 upsampleBlur(
 // │   Off: Normal bloom                                             │
 // │   On: Rainbow fringes at edges (very small, subtle)            │
 // └─────────────────────────────────────────────────────────────────────┘
+#ifndef INCLUDE_CHROMATIC_ABERRATION_SAMPLER_VARIANT
+#define INCLUDE_CHROMATIC_ABERRATION_SAMPLER_VARIANT
 vec3 chromaticAberration(
     sampler2D tex,
     vec2 uv,
@@ -311,6 +313,7 @@ vec3 chromaticAberration(
 
     return vec3(r, g, b);
 }
+#endif  // INCLUDE_CHROMATIC_ABERRATION_SAMPLER_VARIANT
 
 // ╔─────────────────────────────────────────────────────────────────────────╗
 // ║ spectralShift()                                                         ║

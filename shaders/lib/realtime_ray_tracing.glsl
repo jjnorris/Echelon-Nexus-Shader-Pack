@@ -303,14 +303,20 @@ vec3 rayTrace(
 
         // Russian roulette termination
         float surviveProbability = min(1.0, max(max(throughput.r, throughput.g), throughput.b));
-        if (float(bounce) > 2.0 && rand() > surviveProbability) {
+        vec3 rouletteSeed = rayOrigin + vec3(float(bounce));
+        if (float(bounce) > 2.0 && rand(rouletteSeed) > surviveProbability) {
             break;
         }
         throughput /= surviveProbability;
 
         // Sample next ray direction
+        vec3 dirSampleSeed = hitPoint + normalize(rayDir) * float(bounce);
         vec3 nextDir = normalize(
-            hitNormal + normalize(vec3(rand() - 0.5, rand() - 0.5, rand() - 0.5))
+            hitNormal + normalize(vec3(
+                rand(dirSampleSeed) - 0.5,
+                rand(dirSampleSeed + vec3(0.1, 0.2, 0.3)) - 0.5,
+                rand(dirSampleSeed + vec3(0.5, 0.6, 0.7)) - 0.5
+            ))
         );
 
         // Update for next bounce
@@ -579,8 +585,13 @@ vec3 applyRayTracing(
     // Diffuse ray tracing
     if (roughness > 0.0) {
         for (int i = 0; i < rayBudget && i < 16; i++) {
+            vec3 diffuseSeed = position + normal * float(i);
             vec3 diffuseDir = normalize(
-                normal + vec3(rand() - 0.5, rand() - 0.5, rand() - 0.5)
+                normal + vec3(
+                    rand(diffuseSeed) - 0.5,
+                    rand(diffuseSeed + vec3(0.1, 0.2, 0.3)) - 0.5,
+                    rand(diffuseSeed + vec3(0.5, 0.6, 0.7)) - 0.5
+                )
             );
             vec3 diffuseTrace = rayTrace(position, diffuseDir, 2, geometryTexture);
             rtColor += diffuseTrace * (roughness / float(rayBudget));

@@ -60,8 +60,8 @@
 // └─────────────────────────────────────────────────────────────────────┘
 vec2 computeHaltonJitter(int frameIndex, float jitterScale) {
     // Compute Halton sequence values for base 2 and base 3
-    float h2 = halton(frameIndex, 2);  // Base 2: [0, 1)
-    float h3 = halton(frameIndex, 3);  // Base 3: [0, 1)
+    float h2 = radicalInverse(2u, uint(frameIndex));  // Base 2: [0, 1)
+    float h3 = radicalInverse(3u, uint(frameIndex));  // Base 3: [0, 1)
 
     // Remap from [0, 1) to [-0.5, 0.5)
     vec2 jitter = (vec2(h2, h3) - vec2(0.5)) * 2.0;
