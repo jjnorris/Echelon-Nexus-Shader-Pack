@@ -291,7 +291,7 @@ void main() {
             bool phase14B = false;  // Per-light (requires light data)
             bool phase14C = false;  // Motion blur (requires motion vectors)
             bool phase14D = true;   // Glare effects (always safe)
-            bool phase14E = true;   // God rays (requires volumetric integration)
+            bool phase14E = false;  // God rays (requires volumetric data)
 
             // Override with shader options if available
             #ifdef BLOOM_PHASE14A
@@ -304,13 +304,9 @@ void main() {
                 phase14E = true;
             #endif
 
-            // Apply sub-phases to bloom result
-            vec3 bloomedColor = color;  // Store pre-subphase bloom
-            vec3 bloomContribution = bloomedColor - sceneColorBeforeBloom;
-
-            // Apply enhancements to bloom portion
-            bloomContribution = applyBloomSubPhases(
-                bloomContribution,
+            // Apply sub-phases enhancement to bloom result
+            color = applyBloomSubPhases(
+                color,
                 color,
                 vTexCoord,
                 phase14A,
@@ -319,9 +315,6 @@ void main() {
                 phase14D,
                 phase14E
             );
-
-            // Add enhanced bloom back to scene
-            color = sceneColorBeforeBloom + bloomContribution;
         #endif
     #endif
 

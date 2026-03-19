@@ -47,11 +47,11 @@
 // │ Returns: Average scene luminance [0.0, ∞]                       │
 // └─────────────────────────────────────────────────────────────────────┘
 float computeSceneAverageLuminance(
-    sampler2D colorBuffer,
     vec2 screenCoord,
     int sampleCount
 ) {
     // Sample grid positions (spread across screen for representative sampling)
+    // Note: Requires colortex0 sampler to be available in calling context
     vec2 samples[9] = vec2[](
         vec2(0.2, 0.2),  vec2(0.5, 0.2),  vec2(0.8, 0.2),
         vec2(0.2, 0.5),  vec2(0.5, 0.5),  vec2(0.8, 0.5),
@@ -61,7 +61,7 @@ float computeSceneAverageLuminance(
     // Accumulate luminance samples
     float logLuminanceSum = 0.0;
     for (int i = 0; i < sampleCount && i < 9; i++) {
-        vec3 sampleColor = texture(colorBuffer, samples[i]).rgb;
+        vec3 sampleColor = texture(colortex0, samples[i]).rgb;
         float sampleLum = max(0.001, computeLuminance(sampleColor));  // Avoid log(0)
         logLuminanceSum += log(sampleLum);
     }
@@ -212,14 +212,13 @@ vec3 computeMotionBloomTrail(
     vec3 bloomColor,
     vec2 velocityPixels,
     vec2 screenCoord,
-    sampler2D bloomSampler,
     float motionBlurAmount
 ) {
     // Normalize and scale velocity for trail sampling
-    vec2 trailDirection = normalize(velocityPixels);
+    vec2 trailDirection = normalize(velocityPixels + vec2(0.001));  // Avoid division by zero
     float trailLength = length(velocityPixels) * motionBlurAmount;
 
-    // Sample along motion trail
+    // Sample along motion trail (requires colortex0 in calling context)
     vec3 trailAccum = bloomColor;
     int trailSamples = 8;
 
@@ -234,8 +233,8 @@ vec3 computeMotionBloomTrail(
             continue;
         }
 
-        // Sample bloom at trail position
-        vec3 trailSample = texture(bloomSampler, sampleUV).rgb;
+        // Sample color at trail position
+        vec3 trailSample = texture(colortex0, sampleUV).rgb;
 
         // Falloff with distance (fade trail)
         float trailFalloff = 1.0 - (float(i) / float(trailSamples));
@@ -508,7 +507,6 @@ vec3 applyBloomSubPhases(
             result,
             motionVector,
             screenCoord,
-            colorBuffer,
             0.3
         );
         result = mix(result, trailedBloom, 0.5);
