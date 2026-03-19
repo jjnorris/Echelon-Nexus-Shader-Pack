@@ -199,11 +199,11 @@ void main() {
     float sunWarmth = cos(sunAngle);  // -1 to 1, warm at sunrise/sunset
 
     // Sunrise/sunset: warm orange (1.0, 0.7, 0.4)
-    // Noon: cool white (1.0, 0.95, 0.8)
+    // Noon: neutral white (1.0, 1.0, 1.0)
     // Transition smoothly based on sun height
     vec3 sunColor = mix(
         vec3(1.0, 0.6, 0.2),          // Warm sunset colors
-        vec3(1.0, 0.95, 0.8),         // Cool daylight
+        vec3(1.0, 0.98, 1.0),         // Neutral daylight (reduced yellow)
         smoothstep(-0.2, 0.3, sunHeight)
     );
 
