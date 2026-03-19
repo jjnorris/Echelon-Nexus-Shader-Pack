@@ -31,6 +31,7 @@
 #include "lib/temporal_anti_aliasing.glsl"
 #include "lib/bloom_and_spectral.glsl"
 #include "lib/bloom_subphases.glsl"
+#include "lib/advanced_sampling.glsl"
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ UNIFORM INPUTS                                                            ║
