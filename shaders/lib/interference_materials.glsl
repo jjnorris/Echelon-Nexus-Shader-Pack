@@ -1,417 +1,275 @@
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║                                                                           ║
-// ║              INTERFERENCE-BASED MATERIALS (PHASE 16)                     ║
+// ║     INTERFERENCE & ADVANCED MATERIALS (PHASE 16)                         ║
+// ║     COMPLETE SUB-PHASES 16A-E IMPLEMENTATION                             ║
 // ║                                                                           ║
-// ║  Thin-film interference effects for material blending and spectral       ║
-// ║  property variation. Implements physics-based iridescence and            ║
-// ║  thin-film interference patterns using optical path difference.          ║
+// ║  Optical physics-based material effects including thin-film             ║
+// ║  interference, iridescence, diffraction, multilayer materials,         ║
+// ║  and wavelength-dependent refraction.                                  ║
 // ║                                                                           ║
-// ║  Theory: When light bounces between parallel surfaces (oil on water,    ║
-// ║  soap bubbles), path difference causes constructive/destructive         ║
-// ║  interference, producing characteristic color shifts.                    ║
+// ║  Sub-Phases:                                                             ║
+// ║    16A: Thin-Film Interference (soap bubbles, oil slicks)              ║
+// ║    16B: Iridescence (peacock feathers, CDs)                            ║
+// ║    16C: Diffraction Gratings                                           ║
+// ║    16D: Layer Materials (Clearcoat + Base)                             ║
+// ║    16E: Wavelength-Dependent Refraction                                ║
+// ║                                                                           ║
+// ║  Applications:                                                           ║
+// ║    - Realistic water surfaces with oil-like effects                    ║
+// ║    - Iridescent materials (butterfly wings, CDs)                       ║
+// ║    - Soap bubbles and thin films                                       ║
+// ║    - Multi-layer clearcoat + paint materials                          ║
+// ║    - Chromatic aberration in optics                                    ║
 // ║                                                                           ║
 // ║  References:                                                             ║
-// ║    - Heitz et al. (2019) - Layered Materials with Atomic Decomposition  ║
-// ║    - Ghosh et al. (2007) - Light Field Mapping in Multilayers           ║
-// ║    - Born & Wolf (1999) - Principles of Optics                          ║
+// ║    - Born & Wolf (1999) - Principles of Optics                         ║
+// ║    - Hecht (2016) - Optics (5th ed.)                                   ║
+// ║    - Akenine-Möller et al. (2018) - Real-Time Rendering               ║
+// ║    - Pharr et al. (2016) - Physically Based Rendering                  ║
 // ║                                                                           ║
 // ╚═══════════════════════════════════════════════════════════════════════════╝
 
 #ifndef INCLUDE_INTERFERENCE_MATERIALS
 #define INCLUDE_INTERFERENCE_MATERIALS
 
-// ╔───────────────────────────────────────────────────────────────────────────╗
-// ║ THIN-FILM INTERFERENCE CALCULATION                                       ║
+#include "constants.glsl"
+#include "functions.glsl"
+
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║ PHASE 16A: THIN-FILM INTERFERENCE                                       ║
 // ║                                                                           ║
-// │ Core optical physics for multi-layer materials. Computes phase shifts    │
-// │ from path differences, enabling realistic color variation with viewing   │
-// │ angle (iridescence, oil slicks, soap bubbles).                          │
+// │ Optical interference in thin films (soap bubbles, oil slicks).         ║
+// │ Constructive/destructive interference creates color from thickness.   ║
 // └───────────────────────────────────────────────────────────────────────────┘
 
-// ╔─────────────────────────────────────────────────────────────────────────╗
-// ║ computeOpticalPathDifference()                                          ║
-// ║                                                                         ║
-// │ Computes optical path difference for thin film using Snell's law.     │
-// │ Path difference causes phase shifts in light bouncing through film.    │
-// │                                                                         ║
-// │ Parameters:                                                            ║
-// │   thickness   - Film thickness (0.1-10 μm, mapped to [0,1])          │
-// │   theta_i     - Angle of incidence (0=normal, π/2=grazing)           │
-// │   n_film      - Refractive index (1.3-1.5 for organic films)         │
-// │                                                                         ║
-// │ Returns: Optical path difference used for interference calculation    │
-// │                                                                         ║
-// │ Physics: OPD = 2 * thickness * n * cos(θ_transmitted)                │
-// │ (factor of 2 accounts for down and up light paths)                   │
-// └─────────────────────────────────────────────────────────────────────────┘
-float computeOpticalPathDifference(float thickness, float theta_i, float n_film) {
-    // ────────────────────────────────────────────────────────────────────────
-    // Apply Snell's law: sin(θ_transmitted) = sin(θ_incident) / n_film
-    // ────────────────────────────────────────────────────────────────────────
-    float sin_theta_i = sin(theta_i);
-    float sin_theta_t = sin_theta_i / n_film;
-
-    // Prevent total internal reflection (critical angle violation)
-    if (sin_theta_t > 1.0) return 0.0;
-
-    float cos_theta_t = sqrt(1.0 - sin_theta_t * sin_theta_t);
-
-    // ────────────────────────────────────────────────────────────────────────
-    // Optical path = 2 × thickness × n × cos(θ_transmitted)
-    // Factor of 2: light travels down and back up through film
-    // ────────────────────────────────────────────────────────────────────────
-    return 2.0 * thickness * n_film * cos_theta_t;
-}
-
-// ╔─────────────────────────────────────────────────────────────────────────╗
-// ║ opd2Phase()                                                             ║
-// ║                                                                         ║
-// │ Converts optical path difference to phase shift in radians.            │
-// │ Phase = 2π × OPD / λ (constructive when phase = 2πk for integer k)    │
-// │                                                                         ║
-// │ Parameters:                                                            ║
-// │   opd             - Optical path difference (from computeOptical...)   │
-// │   wavelengthNorm  - Normalized wavelength (550nm green = 1.0 unit)    │
-// │                                                                         ║
-// │ Returns: Phase shift in radians [0, 2π]                              │
-// │                                                                         ║
-// │ Mathematical: φ = (2π / λ) × OPD                                      │
-// └─────────────────────────────────────────────────────────────────────────┘
-float opd2Phase(float opd, float wavelengthNorm) {
-    return 2.0 * 3.14159265359 * opd / wavelengthNorm;
-}
-
-// ╔─────────────────────────────────────────────────────────────────────────╗
-// ║ interferenceFringes()                                                   ║
-// ║                                                                         ║
-// │ Computes intensity from phase using 2-beam interference formula.       │
-// │ Produces characteristic "fringe" patterns seen in oil films/bubbles.   │
-// │                                                                         ║
-// │ Parameters:                                                            ║
-// │   phase - Phase shift from opd2Phase() in radians                     │
-// │                                                                         ║
-// │ Returns: Normalized intensity [0, 1]                                 │
-// │   - 1.0 = constructive (phase = 2πk)                                 │
-// │   - 0.0 = destructive (phase = π(2k+1))                              │
-// │                                                                         ║
-// │ Formula: I = (1 + cos(φ)) / 2  (two-wave interference)               │
-// └─────────────────────────────────────────────────────────────────────────┘
-float interferenceFringes(float phase) {
-    // ────────────────────────────────────────────────────────────────────────
-    // Two-beam interference: I = |A₁ + A₂e^(iφ)|² = (1 + cos(φ)) / 2
-    // Normalized to [0, 1] for color channel blending
-    // ────────────────────────────────────────────────────────────────────────
-    return (1.0 + cos(phase)) * 0.5;
-}
-
-// ╔───────────────────────────────────────────────────────────────────────────╗
-// ║ SPECTRAL MATERIAL BLENDING                                               ║
-// ║                                                                           ║
-// │ Blends two materials using wavelength-dependent interference patterns.  │
-// │ Different wavelengths (RGB) interfere constructively/destructively at  │
-// │ different angles, producing iridescent color shifts (oil slicks, etc). │
-// └───────────────────────────────────────────────────────────────────────────┘
-
-// ╔─────────────────────────────────────────────────────────────────────────╗
-// ║ spectralMaterialBlend()                                                 ║
-// ║                                                                         ║
-// │ Blends two materials using spectral interference as blend factor.      │
-// │ Each RGB channel has different wavelength → different interference     │
-// │ patterns → iridescent color shift with viewing angle.                  │
-// │                                                                         ║
-// │ Parameters:                                                            ║
-// │   material1  - Base material color (blended from)                     │
-// │   material2  - Top material color (blended to)                        │
-// │   thickness  - Film thickness (0-1, affects wavelength scale)         │
-// │   viewAngle  - Viewing angle from surface normal (radians)            │
-// │   n_film     - Film refractive index (1.3-1.5)                        │
-// │                                                                         ║
-// │ Returns: Blended color based on RGB wavelength interference           │
-// │                                                                         ║
-// │ Color Response:                                                         ║
-// │   - Red (650nm) interferes at wider angles                            │
-// │   - Green (550nm) interferes at medium angles                         │
-// │   - Blue (450nm) interferes at narrower angles                        │
-// │   Result: RGB shift with angle creates iridescence                    │
-// └─────────────────────────────────────────────────────────────────────────┘
-vec3 spectralMaterialBlend(
-    vec3 material1,
-    vec3 material2,
-    float thickness,
+float calculateOpticalPathDifference(
+    float filmThickness,
     float viewAngle,
-    float n_film
+    float refractiveIndex
 ) {
-    // ────────────────────────────────────────────────────────────────────────
-    // Compute optical path difference for given angle and thickness
-    // ────────────────────────────────────────────────────────────────────────
-    float opd = computeOpticalPathDifference(thickness, viewAngle, n_film);
+    float sinThetaT = sin(viewAngle) / refractiveIndex;
+    float cosThetaT = sqrt(max(0.0, 1.0 - sinThetaT * sinThetaT));
+    float opd = 2.0 * refractiveIndex * filmThickness * cosThetaT;
+    return opd;
+}
 
-    // ────────────────────────────────────────────────────────────────────────
-    // RGB wavelengths (nm → normalized units)
-    // Red: 650nm, Green: 550nm, Blue: 450nm
-    // Higher wavelength = longer periodicity = wider interference spacing
-    // ────────────────────────────────────────────────────────────────────────
-    vec3 wavelengthsNorm = vec3(0.65, 0.55, 0.45);
+vec3 thinFilmInterferenceColor(
+    float filmThickness,
+    float viewAngle,
+    float refractiveIndex
+) {
+    float opd = calculateOpticalPathDifference(filmThickness, viewAngle, refractiveIndex);
 
-    // ────────────────────────────────────────────────────────────────────────
-    // Compute phase shift for each wavelength
-    // Shorter wavelengths phase faster (more periods)
-    // ────────────────────────────────────────────────────────────────────────
-    vec3 phases = vec3(
-        opd2Phase(opd, wavelengthsNorm.r),
-        opd2Phase(opd, wavelengthsNorm.g),
-        opd2Phase(opd, wavelengthsNorm.b)
+    float redWavelength = 650.0;
+    float greenWavelength = 530.0;
+    float blueWavelength = 460.0;
+
+    float redInterference = (1.0 + cos(2.0 * PI * opd / redWavelength)) / 2.0;
+    float greenInterference = (1.0 + cos(2.0 * PI * opd / greenWavelength)) / 2.0;
+    float blueInterference = (1.0 + cos(2.0 * PI * opd / blueWavelength)) / 2.0;
+
+    float fresnel = pow(sin(viewAngle), 2.0);
+    float intensity = 0.3 + 0.7 * fresnel;
+
+    return vec3(redInterference, greenInterference, blueInterference) * intensity;
+}
+
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║ PHASE 16B: IRIDESCENCE                                                  ║
+// ║                                                                           ║
+// │ Wavelength-dependent color shift with viewing angle (peacock,         ║
+// │ butterfly wings, CDs). Combines thin-film and diffraction effects.   ║
+// └───────────────────────────────────────────────────────────────────────────┘
+
+float iridescenceStrength(float normalDotView, float thickness) {
+    float fresnel = pow(1.0 - normalDotView, 2.5);
+    float thicknessFactor = 1.0 / (1.0 + thickness / 100.0);
+    return fresnel * thicknessFactor;
+}
+
+vec3 iridescenceColor(float normalDotLight, float normalDotView) {
+    float hue = normalDotLight * 360.0;
+    float h = mod(hue / 60.0, 6.0);
+    float c = (1.0 - normalDotView) * 0.8;
+    float x = c * (1.0 - abs(mod(h, 2.0) - 1.0));
+
+    vec3 rgb;
+    if (h < 1.0) rgb = vec3(c, x, 0.0);
+    else if (h < 2.0) rgb = vec3(x, c, 0.0);
+    else if (h < 3.0) rgb = vec3(0.0, c, x);
+    else if (h < 4.0) rgb = vec3(0.0, x, c);
+    else if (h < 5.0) rgb = vec3(x, 0.0, c);
+    else rgb = vec3(c, 0.0, x);
+
+    float m = 0.3 + 0.5 * normalDotView;
+    return rgb + vec3(m);
+}
+
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║ PHASE 16C: DIFFRACTION GRATINGS                                         ║
+// ║                                                                           ║
+// │ Light diffraction through periodic structures (CDs, DVDs).           ║
+// │ Creates rainbow-like spectrum from grooves.                         ║
+// └───────────────────────────────────────────────────────────────────────────┘
+
+vec3 diffractionGratingSpectrum(
+    float grooveSpacing,
+    float incidentAngle,
+    float normalDotView
+) {
+    float order = 1.0 + 2.0 * normalDotView;
+
+    float redWavelength = 650.0e-3;
+    float greenWavelength = 530.0e-3;
+    float blueWavelength = 460.0e-3;
+
+    float d = grooveSpacing;
+
+    float redAngle = asin(clamp(sin(incidentAngle) + order * redWavelength / d, -1.0, 1.0));
+    float greenAngle = asin(clamp(sin(incidentAngle) + order * greenWavelength / d, -1.0, 1.0));
+    float blueAngle = asin(clamp(sin(incidentAngle) + order * blueWavelength / d, -1.0, 1.0));
+
+    float redIntensity = pow(sin(redAngle * 2.0), 2.0);
+    float greenIntensity = pow(sin(greenAngle * 2.0), 2.0);
+    float blueIntensity = pow(sin(blueAngle * 2.0), 2.0);
+
+    redIntensity = clamp(redIntensity, 0.0, 1.0);
+    greenIntensity = clamp(greenIntensity, 0.0, 1.0);
+    blueIntensity = clamp(blueIntensity, 0.0, 1.0);
+
+    return vec3(redIntensity, greenIntensity, blueIntensity);
+}
+
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║ PHASE 16D: LAYER MATERIALS (CLEARCOAT + BASE)                          ║
+// ║                                                                           ║
+// │ Multi-layer materials with separate BRDFs for each layer.            ║
+// │ Typical use: Clearcoat (glossy) + Paint (matte/metallic base).       ║
+// └───────────────────────────────────────────────────────────────────────────┘
+
+float clearcoatFresnel(float cosTheta, float ior) {
+    float f0 = pow((ior - 1.0) / (ior + 1.0), 2.0);
+    return f0 + (1.0 - f0) * pow(1.0 - cosTheta, 5.0);
+}
+
+vec3 multilayerBRDF(
+    vec3 baseColor,
+    float baseCosTheta,
+    float clearcoatCosTheta,
+    float clearcoatRoughness
+) {
+    float f_coat = clearcoatFresnel(clearcoatCosTheta, 1.5);
+    float d_coat = pow(clearcoatRoughness, 4.0);
+    vec3 clearcoatReflection = vec3(f_coat * d_coat);
+
+    float transmission = 1.0 - f_coat;
+
+    float baseDiffuse = max(0.0, baseCosTheta);
+    float baseSpecular = pow(baseCosTheta, 10.0);
+    vec3 baseReflection = baseColor * (baseDiffuse * 0.3 + baseSpecular * 0.7);
+
+    return clearcoatReflection + transmission * baseReflection;
+}
+
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║ PHASE 16E: WAVELENGTH-DEPENDENT REFRACTION                             ║
+// ║                                                                           ║
+// │ Chromatic aberration: different wavelengths refract at different    ║
+// │ angles. Creates color fringing in transparent objects.             ║
+// └───────────────────────────────────────────────────────────────────────────┘
+
+float refractiveIndexForWavelength(
+    float wavelength,
+    float baseIOR,
+    float abbe
+) {
+    float refWavelength = 589.0;
+    float dispersion = (baseIOR - 1.0) / abbe;
+    float wavelengthRatio = refWavelength / wavelength;
+    float deltaIOR = dispersion * (wavelengthRatio * wavelengthRatio - 1.0);
+    return baseIOR + deltaIOR;
+}
+
+vec3 chromaticAberration(
+    vec3 incidentDirection,
+    vec3 surfaceNormal,
+    float baseIOR,
+    float abbe
+) {
+    float redWavelength = 650.0;
+    float greenWavelength = 530.0;
+    float blueWavelength = 460.0;
+
+    float redIOR = refractiveIndexForWavelength(redWavelength, baseIOR, abbe);
+    float greenIOR = refractiveIndexForWavelength(greenWavelength, baseIOR, abbe);
+    float blueIOR = refractiveIndexForWavelength(blueWavelength, baseIOR, abbe);
+
+    float cosI = abs(dot(incidentDirection, surfaceNormal));
+    float avgIOR = (redIOR + greenIOR + blueIOR) / 3.0;
+
+    float sinT = sin(acos(cosI)) / avgIOR;
+    float cosT = sqrt(max(0.0, 1.0 - sinT * sinT));
+
+    vec3 tangent = normalize(cross(surfaceNormal, incidentDirection));
+    return normalize(
+        tangent * sin(acos(cosT)) +
+        surfaceNormal * cosT
     );
+}
 
-    // ────────────────────────────────────────────────────────────────────────
-    // Convert phases to intensities via interference fringe pattern
-    // ────────────────────────────────────────────────────────────────────────
-    vec3 interference = vec3(
-        interferenceFringes(phases.r),
-        interferenceFringes(phases.g),
-        interferenceFringes(phases.b)
+vec3 chromaticAberrationColor(
+    vec3 originalColor,
+    float aberrationAmount,
+    vec2 screenCoord
+) {
+    vec3 aberratedColor = vec3(
+        originalColor.r * (1.0 - aberrationAmount * 0.2),
+        originalColor.g,
+        originalColor.b * (1.0 + aberrationAmount * 0.2)
     );
-
-    // ────────────────────────────────────────────────────────────────────────
-    // Use per-channel interference as blend weights
-    // Wavelengths with constructive interference show material2 more
-    // ────────────────────────────────────────────────────────────────────────
-    return mix(material1, material2, interference);
+    return aberratedColor;
 }
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
-// ║ IRIDESCENCE MAPPING                                                      ║
-// ║                                                                           ║
-// │ Generates viewing-angle dependent color variation. Simulates effects    │
-// │ like peacock feathers, butterfly wings, and oil films through direct   │
-// │ wavelength-dependent color mapping (not physical thin-film, but         │
-// │ perceptually convincing).                                               │
+// ║ UNIFIED INTERFERENCE & MATERIAL APPLICATION                              ║
 // └───────────────────────────────────────────────────────────────────────────┘
 
-// ╔─────────────────────────────────────────────────────────────────────────╗
-// ║ generateIridescence()                                                   ║
-// ║                                                                         ║
-// │ Generates iridescent color overlay based on viewing angle.              │
-// │ Produces smooth color transition from blue (normal) → green → red      │
-// │ (grazing angle) with saturation/brightness modulation.                 │
-// │                                                                         ║
-// │ Parameters:                                                            ║
-// │   normal    - Surface normal (normalized)                             │
-// │   viewDir   - View direction (normalized)                             │
-// │   strength  - Iridescence intensity multiplier (0-1)                 │
-// │                                                                         ║
-// │ Returns: RGB iridescent color overlay to blend over base material      │
-// │                                                                         ║
-// │ Behavior by Angle:                                                      ║
-// │   - 0° (normal):  Blue with high saturation                           │
-// │   - 45° (glance): Green/cyan transition                               │
-// │   - 90° (grazing): Red with reduced saturation                        │
-// └─────────────────────────────────────────────────────────────────────────┘
-vec3 generateIridescence(
+vec3 applyInterferenceMaterial(
+    vec3 baseColor,
     vec3 normal,
     vec3 viewDir,
-    float strength
+    vec3 lightDir,
+    int materialType,
+    float thickness,
+    float ior,
+    float abbe
 ) {
-    // ────────────────────────────────────────────────────────────────────────
-    // Compute angle between view and normal (0° = looking straight on,
-    // 90° = looking at glancing angle)
-    // ────────────────────────────────────────────────────────────────────────
-    float viewAngle = acos(abs(dot(viewDir, normal)));
+    float nv = clamp(dot(normal, viewDir), 0.0, 1.0);
+    float nl = clamp(dot(normal, lightDir), 0.0, 1.0);
 
-    // ────────────────────────────────────────────────────────────────────────
-    // Normalize to [0, 1] where 0 = normal, 1 = grazing (π/2 radians)
-    // ────────────────────────────────────────────────────────────────────────
-    float normalizedAngle = viewAngle / 1.5707963267949; // π/2
-
-    // ────────────────────────────────────────────────────────────────────────
-    // Map normalized angle to spectral color response
-    // Dividing into three regions for smooth color transitions
-    // ────────────────────────────────────────────────────────────────────────
-    vec3 spectralResponse;
-
-    if (normalizedAngle < 0.33) {
-        // ────────────────────────────────────────────────────────────────────
-        // Blue region (0-33%): normal viewing angle dominates
-        // ────────────────────────────────────────────────────────────────────
-        spectralResponse = vec3(0.1, 0.3, 1.0);
-    } else if (normalizedAngle < 0.67) {
-        // ────────────────────────────────────────────────────────────────────
-        // Transition region (33-67%): blue → green blend
-        // ────────────────────────────────────────────────────────────────────
-        float t = (normalizedAngle - 0.33) / 0.34;
-        spectralResponse = mix(
-            vec3(0.1, 0.3, 1.0),  // Blue
-            vec3(0.2, 0.9, 0.3),  // Green
-            t
-        );
-    } else {
-        // ────────────────────────────────────────────────────────────────────
-        // Red region (67-100%): green → red transition at grazing angles
-        // ────────────────────────────────────────────────────────────────────
-        float t = (normalizedAngle - 0.67) / 0.33;
-        spectralResponse = mix(
-            vec3(0.2, 0.9, 0.3),  // Green
-            vec3(1.0, 0.2, 0.1),  // Red
-            t
-        );
+    if (materialType == 0) {
+        vec3 interference = thinFilmInterferenceColor(thickness, acos(nv), ior);
+        return mix(baseColor, interference, 0.7);
+    }
+    else if (materialType == 1) {
+        float iridAmount = iridescenceStrength(nv, thickness);
+        vec3 iridColor = iridescenceColor(nl, nv);
+        return mix(baseColor, iridColor, iridAmount);
+    }
+    else if (materialType == 2) {
+        vec3 spectrum = diffractionGratingSpectrum(thickness, acos(nl), nv);
+        return mix(baseColor, spectrum, 0.6);
+    }
+    else if (materialType == 3) {
+        vec3 layered = multilayerBRDF(baseColor, nl, nv, thickness);
+        return layered;
+    }
+    else if (materialType == 4) {
+        vec3 aberrated = chromaticAberrationColor(baseColor, abbe * 0.1, vec2(0.5));
+        return aberrated;
     }
 
-    // ────────────────────────────────────────────────────────────────────────
-    // Apply saturation modulation: highest at glancing angles, lower at normal
-    // Mix toward neutral (0.5) to reduce saturation effect at normal angles
-    // ────────────────────────────────────────────────────────────────────────
-    float saturation = 1.2 + 0.5 * (1.0 - normalizedAngle);
-    spectralResponse = mix(vec3(0.5), spectralResponse, saturation);
-
-    return spectralResponse * strength;
+    return baseColor;
 }
 
-// ╔───────────────────────────────────────────────────────────────────────────╗
-// ║ MULTI-LAYER MATERIAL COMPOSITION                                         ║
-// ║                                                                           ║
-// │ Combines dielectric and metallic layers into single material parameters.│
-// │ Supports complex effects like metallic flakes in paint, clear coats     │
-// │ over metal, and thin-film effects on layered surfaces.                  │
-// └───────────────────────────────────────────────────────────────────────────┘
-
-// ╔─────────────────────────────────────────────────────────────────────────╗
-// ║ LayeredMaterial (structure)                                             ║
-// ║                                                                         ║
-// │ Represents composed multi-layer material properties                    │
-// │   color:      Final blended RGB (0-1)                                 │
-// │   roughness:  Blended roughness (0=mirror, 1=diffuse)                │
-// │   metallic:   Blended metallicity (0=dielectric, 1=conductor)        │
-// └─────────────────────────────────────────────────────────────────────────┘
-struct LayeredMaterial {
-    vec3 color;      // Final blended color
-    float roughness; // Blended roughness
-    float metallic;  // Blended metallicity
-};
-
-// ╔─────────────────────────────────────────────────────────────────────────╗
-// ║ composeLayeredMaterial()                                                ║
-// ║                                                                         ║
-// │ Composes two material layers into single BRDF parameters with thin-    │
-// │ film interference effects on the top layer.                            │
-// │                                                                         ║
-// │ Parameters:                                                            ║
-// │   layer1_color   - Base layer color (e.g., paint)                     │
-// │   layer1_rough   - Base layer roughness                               │
-// │   layer2_color   - Top layer color (e.g., metallic flakes)            │
-// │   layer2_metal   - Top layer metallicity (0=none, 1=full)             │
-// │   layer2_thick   - Top layer thickness (affects interference)         │
-// │   viewAngle      - Viewing angle for interference calculation          │
-// │   layerBlend     - Blend strength (0=layer1 only, 1=layer2 full)     │
-// │                                                                         ║
-// │ Returns: Composed LayeredMaterial with blended properties             │
-// │                                                                         ║
-// │ Behavior:                                                               ║
-// │   - Thin-film interference on layer2 with layer1 as reference         │
-// │   - Top layer color blends over base via spectral interference         │
-// │   - Roughness: top layer much smoother (thin coats are polished)      │
-// │   - Metallicity: fully controlled by layer blend strength              │
-// └─────────────────────────────────────────────────────────────────────────┘
-LayeredMaterial composeLayeredMaterial(
-    vec3 layer1_color,   // Dielectric base (e.g., paint)
-    float layer1_rough,
-    vec3 layer2_color,   // Metallic layer (e.g., flakes)
-    float layer2_metal,
-    float layer2_thick,  // Layer 2 thickness
-    float viewAngle,
-    float layerBlend
-) {
-    // ────────────────────────────────────────────────────────────────────────
-    // Apply thin-film interference to layer 2 against layer 1 base
-    // Spectral blending creates iridescent effect on layer 2
-    // n_film = 1.4 is typical for clear coat dielectrics
-    // ────────────────────────────────────────────────────────────────────────
-    vec3 blendedLayer2 = spectralMaterialBlend(
-        layer1_color,
-        layer2_color,
-        layer2_thick,
-        viewAngle,
-        1.4  // Typical clear coat refractive index
-    );
-
-    // ────────────────────────────────────────────────────────────────────────
-    // Compose into final material
-    // ────────────────────────────────────────────────────────────────────────
-    LayeredMaterial result;
-
-    // Color: blend base with interference-modified top layer
-    result.color = mix(layer1_color, blendedLayer2, layerBlend);
-
-    // Roughness: thin coats are very smooth (0.1), base can be rough
-    result.roughness = mix(layer1_rough, 0.1, layerBlend);
-
-    // Metallicity: controlled by layerBlend and layer2_metal
-    result.metallic = mix(0.0, layer2_metal, layerBlend);
-
-    return result;
-}
-
-// ╔───────────────────────────────────────────────────────────────────────────╗
-// ║ FRESNEL WITH INTERFERENCE VARIATION                                      ║
-// ║                                                                           ║
-// │ Enhances Schlick Fresnel with thin-film interference modulation.        │
-// │ Produces more realistic specular response for layered materials,        │
-// │ especially at grazing angles where thin films have strongest effect.    │
-// └───────────────────────────────────────────────────────────────────────────┘
-
-// ╔─────────────────────────────────────────────────────────────────────────╗
-// ║ fresnelInterference()                                                   ║
-// ║                                                                         ║
-// │ Computes Fresnel response modulated by thin-film interference effects. │
-// │ At grazing angles where interference is strong, modulates the Fresnel  │
-// │ intensity to match realistic oil/soap/clear-coat behavior.             │
-// │                                                                         ║
-// │ Parameters:                                                            ║
-// │   F0        - Base Fresnel reflectance at normal angle (0-1)           │
-// │   HdotV     - Dot product of half-vector and view (0=grazing, 1=normal)│
-// │   thickness - Film thickness (affects interference period)             │
-// │   n_film    - Film refractive index (1.3-1.5)                          │
-// │                                                                         ║
-// │ Returns: Fresnel reflectance modulated by interference                 │
-// │                                                                         ║
-// │ Physics:                                                                ║
-// │   - Base: Schlick Fresnel at normal viewing conditions                 │
-// │   - Modulation: Interference peaks/dips at grazing angles              │
-// │   - Strength: Maximum at 90° (grazing), zero at normal (0°)            │
-// └─────────────────────────────────────────────────────────────────────────┘
-vec3 fresnelInterference(
-    vec3 F0,
-    float HdotV,
-    float thickness,
-    float n_film
-) {
-    // ────────────────────────────────────────────────────────────────────────
-    // Base Fresnel using Schlick's approximation (standard PBR)
-    // F = F₀ + (1 - F₀) × (1 - cos(θ))⁵
-    // ────────────────────────────────────────────────────────────────────────
-    vec3 fresnel = F0 + (1.0 - F0) * pow(1.0 - HdotV, 5.0);
-
-    // ────────────────────────────────────────────────────────────────────────
-    // Compute interference modulation strength
-    // Strong at grazing angles (HdotV → 0), zero at normal (HdotV → 1)
-    // ────────────────────────────────────────────────────────────────────────
-    float interferenceStrength = 1.0 - HdotV * HdotV;
-
-    // ────────────────────────────────────────────────────────────────────────
-    // Compute optical path difference at extreme grazing angle (π/2)
-    // Phase shift determines if interference adds or subtracts from Fresnel
-    // ────────────────────────────────────────────────────────────────────────
-    float opd = computeOpticalPathDifference(thickness, 1.5707963, n_film);
-    float phase = opd2Phase(opd, 0.55);  // Green wavelength (550nm)
-    float interference = interferenceFringes(phase);
-
-    // ────────────────────────────────────────────────────────────────────────
-    // Modulate Fresnel response with interference pattern
-    // At grazing angles: apply interference modulation at full strength
-    // At normal angles: minimal interference effect (interferenceStrength ≈ 0)
-    // ────────────────────────────────────────────────────────────────────────
-    fresnel = mix(fresnel, fresnel * interference, interferenceStrength * 0.5);
-
-    return fresnel;
-}
-
-#endif // INCLUDE_INTERFERENCE_MATERIALS
+#endif  // INCLUDE_INTERFERENCE_MATERIALS

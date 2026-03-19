@@ -28,6 +28,7 @@
 #include "lib/viewport.glsl"
 #include "lib/screen_space_reflections.glsl"
 #include "lib/optimization_fallbacks.glsl"
+#include "lib/interference_materials.glsl"
 #include "lib/temporal_anti_aliasing.glsl"
 #include "lib/bloom_and_spectral.glsl"
 #include "lib/bloom_subphases.glsl"
