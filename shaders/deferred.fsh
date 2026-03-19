@@ -15,22 +15,16 @@
 
 #version 330 compatibility
 
-#include "lib/constants.glsl"
-#include "lib/functions.glsl"
-#include "lib/pbr_material.glsl"
-#include "lib/lighting_common.glsl"
-#include "lib/viewport.glsl"
-#include "lib/shadow_sampling.glsl"
-#include "lib/blue_noise.glsl"
-
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ UNIFORM INPUTS                                                            ║
+// ║                                                                           ║
+// ║ Declared BEFORE includes so library files can reference these uniforms.  ║
 // ╚───────────────────────────────────────────────────────────────────────────╝
 
 uniform sampler2D colortex0;  // G-buffer 0: Albedo (RGB) + Alpha
 uniform sampler2D colortex1;  // G-buffer 1: Material (roughness, metallic, emissive)
 uniform sampler2D colortex2;  // G-buffer 2: Normal (oct-encoded) + Depth
-uniform sampler2D shadowtex0;  // Shadow map (use as 2D, not shadow comparison)
+uniform sampler2D shadowtex0; // Shadow depth map
 uniform sampler2D noisetex;   // Blue noise for dithering
 
 // Built-in uniforms provided by Iris/Minecraft
@@ -41,6 +35,20 @@ uniform vec3 cameraPosition;            // Camera position in world space
 // Shadow mapping uniforms (provided by Iris)
 uniform mat4 shadowProjection;    // Light's projection matrix
 uniform mat4 shadowModelView;     // Light's view matrix
+
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ LIBRARY INCLUDES                                                          ║
+// ║                                                                           ║
+// ║ Included AFTER uniforms so libraries can reference shadowtex0 etc.       ║
+// ╚───────────────────────────────────────────────────────────────────────────╝
+
+#include "lib/constants.glsl"
+#include "lib/functions.glsl"
+#include "lib/pbr_material.glsl"
+#include "lib/lighting_common.glsl"
+#include "lib/viewport.glsl"
+#include "lib/shadow_sampling.glsl"
+#include "lib/blue_noise.glsl"
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ VARYINGS                                                                  ║
@@ -105,7 +113,8 @@ void main() {
     // ║ Step 3: Compute Fresnel & Alpha (PHASE 4-5)                        ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    vec3 f0 = computeF0(metallic, albedo);
+    // computeF0 returns float (scalar reflectance at normal incidence)
+    float f0 = computeF0(metallic, albedo);
     float alpha = remapRoughness(roughness);
 
     // Create material structure for lighting calculations

@@ -222,7 +222,8 @@ float shadowPCSS(
 
     if (penumbraSize < 0.0001) {
         // No soft shadow; use simple comparison
-        return isInShadow(shadowPos, compareDepth, SHADOW_BIAS) ? 1.0 : 0.0;
+        float shadowMapSample = texture(shadowtex0, shadowPos.xy).r;
+        return isInShadow(shadowPos, shadowMapSample, SHADOW_BIAS) ? 1.0 : 0.0;
     }
 
     // Step 2: PCF with penumbra-sized kernel
@@ -286,7 +287,8 @@ float computeShadowFactor(
 
         default:
             // Fallback: simple comparison
-            shadowFactor = isInShadow(shadowPos, shadowPos.z, bias) ? 1.0 : 0.0;
+            float shadowMapSample = texture(shadowtex0, shadowPos.xy).r;
+            shadowFactor = isInShadow(shadowPos, shadowMapSample, bias) ? 1.0 : 0.0;
             break;
     }
 
