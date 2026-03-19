@@ -226,6 +226,475 @@ const int DEBUG_SSR = 8;
 // Example: customTexture BlueNoise = path/to/blue_noise.png
 
 // ===================================================================
+// SHADER OPTION DEFINITIONS (User-Configurable via shaders.properties)
+// ===================================================================
+// These #defines are set via shaders.properties sliders and options.
+// Default values match the "HIGH" profile unless overridden.
+// Value lists in comments are for OptiFine slider configuration.
+
+// SHADOWS
+#ifndef SHADOW_DISTANCE
+#define SHADOW_DISTANCE 128                    // [64 96 128 160 192 256]
+#endif
+
+#ifndef SHADOW_SOFTNESS
+#define SHADOW_SOFTNESS 1.0                    // [0.5 0.75 1.0 1.25 1.5 2.0]
+#endif
+
+#ifndef SHADOW_FILTER_SIZE
+#define SHADOW_FILTER_SIZE 1.0                 // [0.5 1.0 1.5 2.0 2.5 3.0]
+#endif
+
+#ifndef SHADOW_BIAS
+#define SHADOW_BIAS 0.001                      // [0.0001 0.0005 0.001 0.002 0.005 0.01]
+#endif
+
+#ifndef PENUMBRA_SCALE
+#define PENUMBRA_SCALE 1.0                     // [0.5 0.75 1.0 1.25 1.5 2.0]
+#endif
+
+// BLOOM
+#ifndef BLOOM_STRENGTH
+#define BLOOM_STRENGTH 0.5                     // [0.0 0.25 0.5 0.75 1.0]
+#endif
+
+#ifndef BLOOM_THRESHOLD
+#define BLOOM_THRESHOLD 0.5                    // [0.1 0.3 0.5 0.7 0.9]
+#endif
+
+#ifndef BLOOM_INTENSITY
+#define BLOOM_INTENSITY 0.5                    // [0.25 0.5 0.75 1.0 1.5 2.0]
+#endif
+
+#ifndef BLOOM_SOFTKNEE
+#define BLOOM_SOFTKNEE 0.1                     // [0.0 0.05 0.1 0.15 0.2]
+#endif
+
+#ifndef BLOOM_SPECTRAL_SHIFT
+#define BLOOM_SPECTRAL_SHIFT 0.0               // [0.0 0.1 0.2 0.3 0.4 0.5]
+#endif
+
+// OPTICAL EFFECTS
+#ifndef CHROMATIC_ABERRATION
+#define CHROMATIC_ABERRATION 0.0               // [0.0 0.01 0.02 0.03 0.04 0.05]
+#endif
+
+#ifndef AIRY_APERTURE_SIZE
+#define AIRY_APERTURE_SIZE 0.01                // [0.001 0.005 0.01 0.02 0.03]
+#endif
+
+#ifndef FLARE_INTENSITY
+#define FLARE_INTENSITY 0.5                    // [0.0 0.25 0.5 0.75 1.0]
+#endif
+
+#ifndef LENS_DISTORTION
+#define LENS_DISTORTION 0.0                    // [0.0 0.1 0.2 0.3 0.4 0.5]
+#endif
+
+#ifndef VIGNETTE_AMOUNT
+#define VIGNETTE_AMOUNT 0.2                    // [0.0 0.1 0.2 0.3 0.4 0.5]
+#endif
+
+#ifndef FILM_GRAIN
+#define FILM_GRAIN 0.0                         // [0.0 0.05 0.1 0.15 0.2]
+#endif
+
+// CAMERA & TONEMAPPING
+#ifndef TONEMAP_EXPOSURE
+#define TONEMAP_EXPOSURE 1.0                   // [0.5 0.75 1.0 1.25 1.5 2.0]
+#endif
+
+#ifndef ADAPTIVE_EXPOSURE
+#define ADAPTIVE_EXPOSURE 1.0                  // [0.0 0.5 1.0 1.5 2.0]
+#endif
+
+#ifndef LIFT_SHADOWS
+#define LIFT_SHADOWS 0.0                       // [0.0 0.1 0.2 0.3 0.4 0.5]
+#endif
+
+#ifndef GAIN_HIGHLIGHTS
+#define GAIN_HIGHLIGHTS 0.0                    // [0.0 0.1 0.2 0.3 0.4 0.5]
+#endif
+
+#ifndef CONTRAST_FACTOR
+#define CONTRAST_FACTOR 1.0                    // [0.5 0.75 1.0 1.25 1.5 2.0]
+#endif
+
+#ifndef SATURATION_FACTOR
+#define SATURATION_FACTOR 1.0                  // [0.0 0.5 1.0 1.5 2.0]
+#endif
+
+#ifndef GAMMA_MIDTONES
+#define GAMMA_MIDTONES 1.0                     // [0.5 0.75 1.0 1.25 1.5 2.0]
+#endif
+
+#ifndef OUTPUT_GAMMA
+#define OUTPUT_GAMMA 2.2                       // [1.8 2.0 2.2 2.4 2.6]
+#endif
+
+#ifndef COLOR_GRADE_STRENGTH
+#define COLOR_GRADE_STRENGTH 1.0               // [0.0 0.25 0.5 0.75 1.0]
+#endif
+
+#ifndef SHARPEN_AMOUNT
+#define SHARPEN_AMOUNT 0.0                     // [0.0 0.2 0.4 0.6 0.8 1.0]
+#endif
+
+// WATER
+#ifndef WATER_REFRACTION_STRENGTH
+#define WATER_REFRACTION_STRENGTH 0.5          // [0.0 0.25 0.5 0.75 1.0]
+#endif
+
+#ifndef WATER_WAVE_AMPLITUDE
+#define WATER_WAVE_AMPLITUDE 0.5               // [0.1 0.3 0.5 0.7 0.9]
+#endif
+
+#ifndef WATER_WAVE_FREQUENCY
+#define WATER_WAVE_FREQUENCY 1.0               // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+#ifndef CAUSTICS_SCALE
+#define CAUSTICS_SCALE 1.0                     // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+#ifndef CAUSTICS_SPEED
+#define CAUSTICS_SPEED 1.0                     // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+#ifndef FOAM_INTENSITY
+#define FOAM_INTENSITY 0.5                     // [0.0 0.25 0.5 0.75 1.0]
+#endif
+
+#ifndef UNDERWATER_DEPTH
+#define UNDERWATER_DEPTH 1.0                   // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+// ATMOSPHERE & SKY
+#ifndef AEROSOL_DENSITY
+#define AEROSOL_DENSITY 0.1                    // [0.05 0.1 0.15 0.2 0.3]
+#endif
+
+#ifndef HAZE_AMOUNT
+#define HAZE_AMOUNT 1.0                        // [0.5 0.75 1.0 1.25 1.5 2.0]
+#endif
+
+#ifndef RAYLEIGH_COEFFICIENT
+#define RAYLEIGH_COEFFICIENT 0.2               // [0.1 0.15 0.2 0.25 0.3]
+#endif
+
+#ifndef MIE_COEFFICIENT
+#define MIE_COEFFICIENT 0.005                  // [0.001 0.002 0.005 0.01 0.02]
+#endif
+
+#ifndef ALTITUDE_SCALE
+#define ALTITUDE_SCALE 1.0                     // [0.5 0.75 1.0 1.25 1.5 2.0]
+#endif
+
+#ifndef AERIAL_FOG_DISTANCE
+#define AERIAL_FOG_DISTANCE 100.0              // [50 100 150 200 300 500]
+#endif
+
+#ifndef AERIAL_PERSPECTIVE_DISTANCE
+#define AERIAL_PERSPECTIVE_DISTANCE 50.0       // [20 35 50 75 100 150]
+#endif
+
+#ifndef ATMOSPHERE_TURBIDITY
+#define ATMOSPHERE_TURBIDITY 2.0               // [1.0 1.5 2.0 2.5 3.0]
+#endif
+
+#ifndef ATMOSPHERE_FOG_DENSITY
+#define ATMOSPHERE_FOG_DENSITY 0.1             // [0.0 0.05 0.1 0.15 0.2]
+#endif
+
+#ifndef ATMOSPHERE_FOG_ABSORPTION
+#define ATMOSPHERE_FOG_ABSORPTION 0.05         // [0.01 0.025 0.05 0.1 0.2]
+#endif
+
+#ifndef SKY_SUN_INTENSITY
+#define SKY_SUN_INTENSITY 1.0                  // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+// CLOUDS
+#ifndef CLOUD_QUALITY
+#define CLOUD_QUALITY 2                        // [0 1 2 3]
+#endif
+
+#ifndef CLOUD_RAYMARCH_STEPS
+#define CLOUD_RAYMARCH_STEPS 64                // [16 32 64 128 256]
+#endif
+
+#ifndef CLOUD_SCATTERING_ORDER
+#define CLOUD_SCATTERING_ORDER 2               // [1 2 3 4]
+#endif
+
+#ifndef CLOUD_NOISE_DETAIL
+#define CLOUD_NOISE_DETAIL 0.5                 // [0.25 0.5 0.75 1.0]
+#endif
+
+#ifndef CLOUD_ALT1
+#define CLOUD_ALT1 100.0                       // [50 100 150 200 300]
+#endif
+
+#ifndef CLOUD_ALT2
+#define CLOUD_ALT2 200.0                       // [100 150 200 300 400]
+#endif
+
+// FOG & VOLUMETRIC
+#ifndef FOG_QUALITY
+#define FOG_QUALITY 1                          // [0 1 2 3]
+#endif
+
+#ifndef VOLUMETRIC_SAMPLES
+#define VOLUMETRIC_SAMPLES 16                  // [8 16 32 64 128]
+#endif
+
+#ifndef VOLUMETRIC_FOG_ENABLED
+#define VOLUMETRIC_FOG_ENABLED 1               // [0 1]
+#endif
+
+#ifndef WEATHER_FOG_DENSITY
+#define WEATHER_FOG_DENSITY 0.1                // [0.05 0.1 0.15 0.2]
+#endif
+
+// GOD RAYS / LIGHT SHAFTS
+#ifndef GODRAY_QUALITY
+#define GODRAY_QUALITY 2                       // [0 1 2 3]
+#endif
+
+#ifndef GOD_RAY_DENSITY
+#define GOD_RAY_DENSITY 1.0                    // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+#ifndef GOD_RAY_SAMPLES
+#define GOD_RAY_SAMPLES 16                     // [8 16 32 64]
+#endif
+
+#ifndef LIGHTSHAFT_QUALITY
+#define LIGHTSHAFT_QUALITY 2                   // [0 1 2 3 4]
+#endif
+
+#ifndef LIGHTSHAFT_DAY_I
+#define LIGHTSHAFT_DAY_I 1.0                   // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+#ifndef LIGHTSHAFT_NIGHT_I
+#define LIGHTSHAFT_NIGHT_I 0.5                 // [0.25 0.5 0.75 1.0]
+#endif
+
+#ifndef LIGHTSHAFT_RAIN_I
+#define LIGHTSHAFT_RAIN_I 0.3                  // [0.1 0.2 0.3 0.4 0.5]
+#endif
+
+// LIGHTING & GLOBAL ILLUMINATION
+#ifndef GI_INTENSITY
+#define GI_INTENSITY 1.0                       // [0.5 0.75 1.0 1.25 1.5 2.0]
+#endif
+
+#ifndef IBL_INTENSITY
+#define IBL_INTENSITY 0.5                      // [0.25 0.5 0.75 1.0 1.5]
+#endif
+
+#ifndef IBL_DIFFUSE_INTENSITY
+#define IBL_DIFFUSE_INTENSITY 0.5              // [0.25 0.5 0.75 1.0]
+#endif
+
+#ifndef IBL_SPECULAR_INTENSITY
+#define IBL_SPECULAR_INTENSITY 0.5             // [0.25 0.5 0.75 1.0]
+#endif
+
+#ifndef IBL_ROUGHNESS_SCALE
+#define IBL_ROUGHNESS_SCALE 1.0                // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+#ifndef IBL_MAX_MIP_LEVEL
+#define IBL_MAX_MIP_LEVEL 5                    // [1 2 3 4 5 6 7 8]
+#endif
+
+#ifndef IBL_PROBE_COUNT
+#define IBL_PROBE_COUNT 16                     // [4 8 16 32 64]
+#endif
+
+#ifndef SSGI_INTENSITY
+#define SSGI_INTENSITY 0.5                     // [0.25 0.5 0.75 1.0 1.5]
+#endif
+
+#ifndef SSGI_RAY_STEPS
+#define SSGI_RAY_STEPS 16                      // [8 16 32 64 128]
+#endif
+
+#ifndef SSGI_STRIDE
+#define SSGI_STRIDE 1                          // [1 2 4 8]
+#endif
+
+#ifndef SSGI_CONE_ANGLE
+#define SSGI_CONE_ANGLE 0.5                    // [0.1 0.25 0.5 1.0]
+#endif
+
+#ifndef SSGI_MAX_DISTANCE
+#define SSGI_MAX_DISTANCE 128.0                // [64 128 256 512]
+#endif
+
+#ifndef SSGI_BILATERAL_RADIUS
+#define SSGI_BILATERAL_RADIUS 2.0              // [1.0 2.0 4.0 8.0]
+#endif
+
+#ifndef SSGI_BILATERAL_SIGMA_D
+#define SSGI_BILATERAL_SIGMA_D 1.0             // [0.5 1.0 2.0 4.0]
+#endif
+
+#ifndef SSGI_BILATERAL_SIGMA_S
+#define SSGI_BILATERAL_SIGMA_S 0.2             // [0.1 0.2 0.4 0.8]
+#endif
+
+#ifndef AO_INTENSITY
+#define AO_INTENSITY 1.0                       // [0.25 0.5 0.75 1.0 1.5 2.0]
+#endif
+
+#ifndef AO_COLOR_BLEED
+#define AO_COLOR_BLEED 0.5                     // [0.0 0.25 0.5 0.75 1.0]
+#endif
+
+// MATERIALS & PBR
+#ifndef NORMAL_MAP_STRENGTH
+#define NORMAL_MAP_STRENGTH 1.0                // [0.5 0.75 1.0 1.25 1.5 2.0]
+#endif
+
+#ifndef CUSTOM_EMISSION_INTENSITY
+#define CUSTOM_EMISSION_INTENSITY 1.0          // [0.5 0.75 1.0 1.25 1.5 2.0]
+#endif
+
+#ifndef GENERATED_NORMAL_MULT
+#define GENERATED_NORMAL_MULT 1.0              // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+#ifndef COATED_TEXTURE_MULT
+#define COATED_TEXTURE_MULT 1.0                // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+#ifndef PARALLAX_QUALITY
+#define PARALLAX_QUALITY 1.0                   // [0.5 0.75 1.0 1.25 1.5 2.0]
+#endif
+
+#ifndef MATERIAL_IOR
+#define MATERIAL_IOR 1.5                       // [1.0 1.3 1.5 1.8 2.0]
+#endif
+
+#ifndef MATERIAL_THICKNESS
+#define MATERIAL_THICKNESS 0.5                 // [0.1 0.25 0.5 0.75 1.0]
+#endif
+
+#ifndef MATERIAL_CHROMATIC
+#define MATERIAL_CHROMATIC 0.5                 // [0.0 0.25 0.5 0.75 1.0]
+#endif
+
+#ifndef MATERIAL_ABBE
+#define MATERIAL_ABBE 50.0                     // [20 30 50 70 100]
+#endif
+
+#ifndef INTERFERENCE_STRENGTH
+#define INTERFERENCE_STRENGTH 0.5              // [0.0 0.25 0.5 0.75 1.0]
+#endif
+
+// ANIMATION
+#ifndef WIND_STRENGTH
+#define WIND_STRENGTH 1.0                      // [0.0 0.5 1.0 1.5 2.0]
+#endif
+
+#ifndef TORCH_FLICKER_SPEED
+#define TORCH_FLICKER_SPEED 1.0                // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+// SUBSURFACE SCATTERING
+#ifndef SSS_STRENGTH
+#define SSS_STRENGTH 0.5                       // [0.0 0.25 0.5 0.75 1.0]
+#endif
+
+// TECHNICAL
+#ifndef BLOCKLIGHT_SHAFT_STRENGTH
+#define BLOCKLIGHT_SHAFT_STRENGTH 1.0          // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+#ifndef VBL_NETHER_MULT
+#define VBL_NETHER_MULT 1.0                    // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+#ifndef VBL_END_MULT
+#define VBL_END_MULT 1.0                       // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+#ifndef BLOCKLIGHT_SOURCE_SIZE
+#define BLOCKLIGHT_SOURCE_SIZE 0.5             // [0.25 0.5 0.75 1.0 1.5]
+#endif
+
+#ifndef TRANSLUCENT_LIGHT_CONDUCTION
+#define TRANSLUCENT_LIGHT_CONDUCTION 1.0       // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+// TAA (TEMPORAL ANTI-ALIASING)
+#ifndef TAA_JITTER_SCALE
+#define TAA_JITTER_SCALE 1.0                   // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+#ifndef TAA_SAMPLE_WEIGHT
+#define TAA_SAMPLE_WEIGHT 0.7                  // [0.5 0.6 0.7 0.8 0.9 0.95]
+#endif
+
+#ifndef TAA_SHARPEN
+#define TAA_SHARPEN 0.5                        // [0.0 0.25 0.5 0.75 1.0]
+#endif
+
+#ifndef TAA_CLAMP_STRENGTH
+#define TAA_CLAMP_STRENGTH 1.0                 // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+// RAYTRACING
+#ifndef RAYTRACING_SAMPLES_PER_PIXEL
+#define RAYTRACING_SAMPLES_PER_PIXEL 1         // [1 2 4 8]
+#endif
+
+#ifndef RAYTRACING_MAX_BOUNCES
+#define RAYTRACING_MAX_BOUNCES 3               // [1 2 3 4 5 6 8]
+#endif
+
+#ifndef RAYTRACING_DEPTH_THRESHOLD
+#define RAYTRACING_DEPTH_THRESHOLD 0.1         // [0.05 0.1 0.2 0.5]
+#endif
+
+// INDIRECT LIGHTING
+#ifndef INDIRECT_BOUNCES
+#define INDIRECT_BOUNCES 3                     // [1 2 3 4 5 6]
+#endif
+
+#ifndef INDIRECT_SAMPLES
+#define INDIRECT_SAMPLES 4                     // [2 4 8 16 32]
+#endif
+
+#ifndef INDIRECT_QUALITY
+#define INDIRECT_QUALITY 2                     // [0 1 2 3]
+#endif
+
+#ifndef MIS_POWER
+#define MIS_POWER 2.0                          // [1.0 1.5 2.0 2.5 3.0]
+#endif
+
+// MISC
+#ifndef DETAIL_ENHANCEMENT
+#define DETAIL_ENHANCEMENT 0.5                 // [0.0 0.25 0.5 0.75 1.0]
+#endif
+
+#ifndef SYNTHESIS_SPEED
+#define SYNTHESIS_SPEED 1.0                    // [0.5 0.75 1.0 1.25 1.5]
+#endif
+
+#ifndef BLOCKLIGHT_CHECK_INTERVAL
+#define BLOCKLIGHT_CHECK_INTERVAL 1            // [1 2 4 8]
+#endif
+
+#ifndef COMPRESSION_QUALITY
+#define COMPRESSION_QUALITY 2                  // [0 1 2 3]
+#endif
+
+// ===================================================================
 // UTILITY MACROS
 // ===================================================================
 
