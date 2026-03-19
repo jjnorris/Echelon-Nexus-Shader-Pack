@@ -94,6 +94,13 @@ void main() {
     // ║ and improves cache locality.                                       ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
+    // DEBUG: Output raw albedo from deferred to see if gbuffers have data
+    vec3 rawAlbedo = texture(colortex0, vTexCoord).rgb;
+
+    // Temporarily output raw albedo to see what deferred is producing
+    colortex0_out = vec4(rawAlbedo, 1.0);
+    return;
+
     // Single read of lit scene
     vec3 color = texture(colortex0, vTexCoord).rgb;
 
