@@ -412,6 +412,14 @@ const int DEBUG_SSR = 8;
 #define BLOOM_SOFTKNEE 0.1                     // [0.0 0.05 0.1 0.15 0.2]
 #endif
 
+#ifndef BLOOM_QUALITY
+#define BLOOM_QUALITY 1                        // [0 1 2]
+#endif
+
+#ifndef SPECTRAL_BLOOM_ON
+#define SPECTRAL_BLOOM_ON                      // Enable spectral bloom effects
+#endif
+
 #ifndef BLOOM_SPECTRAL_SHIFT
 #define BLOOM_SPECTRAL_SHIFT 0.0               // [0.0 0.1 0.2 0.3 0.4 0.5]
 #endif
@@ -421,8 +429,16 @@ const int DEBUG_SSR = 8;
 #define CHROMATIC_ABERRATION 0.0               // [0.0 0.01 0.02 0.03 0.04 0.05]
 #endif
 
+#ifndef AIRY_DISK_ON
+#define AIRY_DISK_ON                           // Enable Airy disk diffraction
+#endif
+
 #ifndef AIRY_APERTURE_SIZE
 #define AIRY_APERTURE_SIZE 0.01                // [0.001 0.005 0.01 0.02 0.03]
+#endif
+
+#ifndef LENS_FLARE_ON
+#define LENS_FLARE_ON                          // Enable lens flare
 #endif
 
 #ifndef FLARE_INTENSITY
@@ -940,6 +956,10 @@ const int DEBUG_SSR = 8;
 #define FOAM_INTENSITY 0.5                     // [0.0 0.25 0.5 0.75 1.0]
 #endif
 
+#ifndef WATER_FOAM_INTENSITY
+#define WATER_FOAM_INTENSITY 0.5               // [0.0 0.25 0.5 0.75 1.0]
+#endif
+
 #ifndef FOAM_AT_SHORES
 #define FOAM_AT_SHORES 1.0                     // [0.5 0.75 1.0 1.25 1.5]
 #endif
@@ -1007,6 +1027,10 @@ const int DEBUG_SSR = 8;
 
 #ifndef CLOUD_SELF_SHADOW
 #define CLOUD_SELF_SHADOW 1                    // [0 1]
+#endif
+
+#ifndef CLOUD_TEMPORAL_REPROJECTION
+#define CLOUD_TEMPORAL_REPROJECTION 1          // [0 1]
 #endif
 
 #ifndef CLOUD_TEMPORAL_STABILITY
@@ -1192,6 +1216,10 @@ const int DEBUG_SSR = 8;
 
 #ifndef IBL_USE_SH
 #define IBL_USE_SH 1                           // [0 1]
+#endif
+
+#ifndef REFLECTION_PROBES_ON
+#define REFLECTION_PROBES_ON                   // Enable reflection probes
 #endif
 
 #ifndef PROBE_COUNT
