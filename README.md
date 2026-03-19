@@ -2,7 +2,7 @@
 
 > **Photorealistic Rendering for Minecraft Java Edition 1.21.11**
 
-Echelon Nexus is a production-grade shader pack built on physically-based rendering (PBR) principles, modular architecture, and scalable quality tiers. Designed to work with the **Echelon Nexus Texture Pack**, it prioritizes photorealistic light behavior, accurate optical physics, and coherent visual systems. Delivering genuine realism across five hardware tiers—from integrated graphics to RTX workstations.
+Echelon Nexus is a production-grade shader pack built on physically-based rendering (PBR) principles, modular architecture, and scalable quality tiers. Designed to work with the **Echelon Nexus Texture Pack** (WIP), it prioritizes photorealistic light behavior, accurate optical physics, and coherent visual systems. Delivering genuine realism across five hardware tiers—from integrated graphics to RTX workstations.
 
 **Version**: 2.0.0 (Alpha) | **Status**: Phase 1-5 Complete, Phase 6+ Library Code Ready | **Last Updated**: March 2026
 
@@ -27,7 +27,7 @@ Minecraft's blocky geometry deserves lighting that respects optical physics. Ech
 - **Comprehensive Implementation**: 160+ systems across 29 phases, fully documented
 - **Scalable Architecture**: Five quality tiers (LOW to CINEMA) supporting integrated graphics to RTX workstations
 - **Optical Physics**: Gerstner waves, spectral effects, thin-film interference, subsurface scattering, atmospheric scattering
-- **System Integration**: Designed to work with Echelon Nexus Texture Pack for cohesive results
+- **System Integration**: Designed to work with Echelon Nexus Texture Pack (WIP) for cohesive results
 - **Full Documentation**: Every function, formula, and design decision documented
 
 Photorealism emerges not from raw computing power, but from respect for optical physics, proper material encoding, and integrated texture systems.
@@ -281,7 +281,7 @@ The sky isn't a gradient.it's **simulated from real atmospheric optics**. Raylei
 
 ## 🎬 The Complete System: Shader + Texture Pack
 
-Echelon Nexus is designed as a unified visual system. The accompanying **Echelon Nexus Texture Pack** encodes physical properties (smoothness, metallic, emissive) as LabPBR materials, complementing this shader's rendering approach.
+Echelon Nexus is designed as a unified visual system. The accompanying **Echelon Nexus Texture Pack** (WIP - Not Yet Released) encodes physical properties (smoothness, metallic, emissive) as LabPBR materials, complementing this shader's rendering approach.
 
 The shader alone integrates with any texture pack, but the texture pack amplifies the effect, where every surface responds like its real-world counterpart. This is photorealism as a system, not isolation.
 
@@ -480,11 +480,19 @@ Your work is appreciated and makes the community better.
 
 ---
 
+## 📦 Companion Projects
+
+- **Echelon Nexus Texture Pack** (WIP - Not Yet Released): LabPBR-encoded materials designed to work with this shader for maximum photorealism
+- **Echelon Nexus Companion Mod** (WIP - Not Yet Released): Configuration and integration tools for the shader pack ecosystem
+
+---
+
 ## 🎓 Roadmap
 
-**Current** (v2.0.0): Production-ready, comprehensive documentation, 5 quality tiers, 160+ features
+**Current** (v2.0.0): Production-ready shader pack, comprehensive documentation, 5 quality tiers, 160+ features
 **Future** (v2.1.0): SSBO-accelerated advanced effects, improved mid-range optimization, more resource pack profiles
 **Planned** (v3.0.0): Compute shader enhancements, selective path-tracing approximations, modular feature packs
+**In Development**: Echelon Nexus Texture Pack and Companion Mod (see above)
 
 ---
 
