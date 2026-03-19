@@ -157,8 +157,9 @@ void main() {
             float transmittance = exp(-fogDensity * distance * 0.001);
             float fogBlend = 1.0 - transmittance;
 
+            // DISABLED: Fog being applied too aggressively - causing white washout
             // Apply distance-based fog (stronger at far distances)
-            color = mix(color, fogColor, fogBlend * 0.6);
+            // color = mix(color, fogColor, fogBlend * 0.6);
         }
     #endif
 
