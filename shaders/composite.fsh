@@ -18,6 +18,33 @@
 
 #version 330 compatibility
 
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ UNIFORM INPUTS                                                            ║
+// ║                                                                           ║
+// ║ Declared BEFORE includes so library files can reference these uniforms.  ║
+// ╚───────────────────────────────────────────────────────────────────────────╝
+
+uniform sampler2D colortex0;    // Lit scene color
+uniform sampler2D colortex1;    // Material parameters (for fog mask)
+uniform sampler2D colortex2;    // Normal + depth (for depth-based fog)
+uniform sampler2D colortex3;    // TAA history (optional)
+uniform sampler2D colortex4;    // SSR intermediate (optional)
+uniform sampler2D colortex5;    // Bloom prefilter (optional)
+uniform sampler2D noisetex;     // Blue noise for dithering
+uniform sampler2D depthtex0;    // Depth texture (for god rays)
+uniform int frameCounter;
+uniform float iTime;            // Shader time for animation
+uniform mat4 gbufferProjection;         // Camera projection matrix
+uniform mat4 gbufferProjectionInverse;  // For depth reconstruction
+uniform mat4 gbufferModelViewInverse;   // For world position
+uniform vec3 cameraPosition;    // Camera world position
+
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ LIBRARY INCLUDES                                                          ║
+// ║                                                                           ║
+// ║ Included AFTER uniforms so libraries can reference them.                 ║
+// ╚───────────────────────────────────────────────────────────────────────────╝
+
 #include "lib/constants.glsl"
 #include "lib/functions.glsl"
 #include "lib/post_processing.glsl"
@@ -41,24 +68,6 @@
 #include "lib/bloom_and_spectral.glsl"
 #include "lib/bloom_subphases.glsl"
 #include "lib/advanced_sampling.glsl"
-
-// ╔───────────────────────────────────────────────────────────────────────────╗
-// ║ UNIFORM INPUTS                                                            ║
-// ╚───────────────────────────────────────────────────────────────────────────╝
-
-uniform sampler2D colortex0;    // Lit scene color
-uniform sampler2D colortex1;    // Material parameters (for fog mask)
-uniform sampler2D colortex2;    // Normal + depth (for depth-based fog)
-uniform sampler2D colortex3;    // TAA history (optional)
-uniform sampler2D colortex4;    // SSR intermediate (optional)
-uniform sampler2D colortex5;    // Bloom prefilter (optional)
-uniform sampler2D noisetex;     // Blue noise for dithering
-uniform sampler2D depthtex0;    // Depth texture (for god rays)
-uniform int frameCounter;
-uniform float iTime;            // Shader time for animation
-uniform mat4 gbufferProjectionInverse;  // For depth reconstruction
-uniform mat4 gbufferModelViewInverse;   // For world position
-uniform vec3 cameraPosition;    // Camera world position
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ VARYINGS                                                                  ║

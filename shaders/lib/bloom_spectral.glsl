@@ -53,11 +53,14 @@
 // │                                                                       │
 // │ Returns: Luminance [0, ∞] for HDR                                  │
 // └─────────────────────────────────────────────────────────────────────┘
+// NOTE: computeLuminance is defined in bloom_and_spectral.glsl
+// If this file is used standalone, uncomment the definition below:
+// float computeLuminance(vec3 color) { return luminance(color); }
+#ifndef INCLUDE_BLOOM_AND_SPECTRAL
 float computeLuminance(vec3 color) {
-    // CIE relative luminance weights
-    // Green has more sensitivity (0.587) than red (0.299) or blue (0.114)
-    return dot(color, vec3(0.299, 0.587, 0.114));
+    return luminance(color);  // Delegate to functions.glsl
 }
+#endif
 
 // ╔─────────────────────────────────────────────────────────────────────────╗
 // ║ bloomThreshold()                                                        ║
