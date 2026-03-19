@@ -177,7 +177,7 @@ void main() {
     // In Minecraft: 0 = sunrise, 6000 = noon, 12000 = sunset, 18000 = midnight
     // Using approximation: time cycles 0->24000 (one full day)
     // TODO: Add uniform "uniform int worldTime;" to get actual time
-    float timeOfDay = mod(float(frameCounter) * 0.01, 1.0);  // Placeholder
+    float timeOfDay = 0.5;  // Placeholder: noon
     float sunAngle = timeOfDay * 6.28318530718;  // 0 to 2π radians
 
     // Calculate sun direction in world space
@@ -292,7 +292,7 @@ void main() {
     // Calculate moon phase from time (0-1 normalized)
     // Full cycle: 0-1 represents new moon to full moon and back
     // Using frameCounter as proxy for time (TODO: use actual worldTime uniform)
-    float moonPhase = mod(float(frameCounter) * 0.001 + 0.5, 1.0);
+    float moonPhase = 0.0;  // Placeholder: full moon
 
     // Moon brightness varies sinusoidally with phase
     // Full moon (phase 0.0 or 1.0) = maximum brightness
