@@ -23,7 +23,7 @@
 
 #include "constants.glsl"
 #include "functions.glsl"
-#include "lib/noise.glsl"
+#include "noise.glsl"
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ VOLUMETRIC CLOUD DENSITY                                                 ║

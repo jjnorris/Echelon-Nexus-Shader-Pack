@@ -21,7 +21,7 @@
 
 #include "constants.glsl"
 #include "functions.glsl"
-#include "lib/blue_noise.glsl"
+#include "blue_noise.glsl"
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ SHADOW MAP SPACE TRANSFORMATION                                          ║
