@@ -271,7 +271,7 @@ vec3 computeDirectLighting(
         viewDir,
         light.direction,
         vec3(material.f0),
-        applyRoughnessRemapping(material.roughness)
+        remapRoughness(material.roughness)
     );
 
     // Incoming light angle
