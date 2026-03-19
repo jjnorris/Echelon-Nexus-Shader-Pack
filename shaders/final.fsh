@@ -8,6 +8,12 @@
 
 #version 330 compatibility
 
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ UNIFORM INPUTS                                                            ║
+// ╚───────────────────────────────────────────────────────────────────────────╝
+
+uniform sampler2D colortex0;  // Composited scene color from composite pass
+
 #include "lib/constants.glsl"
 #include "lib/functions.glsl"
 

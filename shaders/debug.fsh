@@ -7,6 +7,18 @@
 
 #version 330 compatibility
 
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ UNIFORM INPUTS (G-buffer & intermediate results)                         ║
+// ╚───────────────────────────────────────────────────────────────────────────╝
+
+uniform sampler2D colortex0;  // Lit scene color
+uniform sampler2D colortex1;  // Material parameters (roughness, metallic, emissive)
+uniform sampler2D colortex2;  // Normal + depth (oct-encoded)
+uniform sampler2D colortex3;  // TAA history
+uniform sampler2D colortex4;  // SSR intermediate
+uniform sampler2D colortex5;  // Bloom prefilter
+uniform int frameCounter;
+
 #include "lib/constants.glsl"
 #include "lib/functions.glsl"
 #include "lib/pbr_material.glsl"
