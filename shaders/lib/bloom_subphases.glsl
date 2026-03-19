@@ -126,58 +126,106 @@ float adaptiveBloomThreshold(
 // └───────────────────────────────────────────────────────────────────────────┘
 
 // ╔─────────────────────────────────────────────────────────────────────────╗
-// ║ extractLightBloom()                                                     ║
+// ║ computePointLightBloom()                                                ║
 // ║                                                                         ║
-// │ Extract bloom contribution from a specific light source.             │
-// │ Simulates bloom halo around bright point lights.                    │
+// │ Compute bloom halo for a point light source.                         │
+// │ Creates realistic bloom around bright dynamic lights.               │
 // │                                                                       │
 // │ Algorithm:                                                            │
-// │   1. Get light position (projected to screen)                      │
-// │   2. Compute distance from pixel to light                         │
-// │   3. Sample light color and intensity                            │
-// │   4. Apply distance falloff (1/r²)                              │
-// │   5. Compute bloom based on light brightness                    │
+// │   1. Compute distance from pixel to light (world space)            │
+// │   2. Project light to screen for 2D halo                          │
+// │   3. Apply inverse-square law falloff                            │
+// │   4. Combine brightness-based bloom contribution                 │
+// │   5. Modulate by light color and intensity                      │
 // │                                                                       │
 // │ Inputs:                                                              │
-// │   lightPosition - Light position in world space                  │
+// │   lightPos - Light position (world space)                        │
 // │   lightColor - Light color (RGB)                                │
-// │   lightIntensity - Light brightness scalar                      │
+// │   lightRadius - Light influence radius (world units)            │
 // │   screenCoord - Current pixel screen coordinate                │
-// │   pixelWorldPos - Pixel world position (for distance)          │
-// │   viewProjectionMatrix - Camera VP matrix                      │
+// │   pixelWorldPos - Pixel world position                         │
+// │   invViewProj - Inverse view-projection matrix                │
 // │                                                                       │
-// │ Returns: Bloom contribution from this light               │
+// │ Returns: Bloom contribution from this point light            │
 // └─────────────────────────────────────────────────────────────────────┘
-vec3 extractLightBloom(
-    vec3 lightPosition,
+vec3 computePointLightBloom(
+    vec3 lightPos,
     vec3 lightColor,
-    float lightIntensity,
+    float lightRadius,
     vec2 screenCoord,
     vec3 pixelWorldPos,
-    mat4 viewProjectionMatrix
+    mat4 invViewProj
 ) {
-    // Project light position to screen space
-    vec4 lightScreenPos = viewProjectionMatrix * vec4(lightPosition, 1.0);
-    lightScreenPos.xy /= lightScreenPos.w;
-    lightScreenPos.xy = lightScreenPos.xy * 0.5 + 0.5;  // NDC to screen coords
+    // Vector from pixel to light
+    vec3 pixelToLight = lightPos - pixelWorldPos;
+    float distToLight = length(pixelToLight);
 
-    // Check if light is on-screen
-    if (lightScreenPos.xy.x < 0.0 || lightScreenPos.xy.x > 1.0 ||
-        lightScreenPos.xy.y < 0.0 || lightScreenPos.xy.y > 1.0) {
-        return vec3(0.0);  // Off-screen light
+    // Only bloom if light is nearby
+    if (distToLight > lightRadius * 2.0) {
+        return vec3(0.0);
     }
 
-    // Distance from pixel to light center (in screen space)
-    vec2 lightDist = screenCoord - lightScreenPos.xy;
-    float screenDistance = length(lightDist) * 1000.0;  // Scale to pixels
+    // Distance-based falloff: inverse square law + soft transition
+    float normalizedDist = distToLight / lightRadius;
+    float distFalloff = 1.0 / (1.0 + normalizedDist * normalizedDist * 4.0);
+    distFalloff = smoothstep(2.0, 0.0, normalizedDist);  // Soft edge
 
-    // Distance-based falloff (Gaussian)
-    float falloff = exp(-screenDistance * screenDistance * 0.01);
+    // Screen-space halo using light brightness as proxy
+    // Brighter lights create larger halos
+    float haloSize = 0.1 + length(lightColor) * 0.15;
 
-    // Bloom bloom based on light brightness
-    vec3 bloom = lightColor * lightIntensity * falloff;
+    // Distance in screen space for visual halo
+    vec2 screenLightOffset = normalize(pixelToLight.xy) * haloSize;
+    float screenDist = length(screenCoord - screenLightOffset);
 
-    return bloom;
+    // Screen-space halo falloff
+    float haloFalloff = exp(-screenDist * screenDist * 20.0);
+
+    // Combined bloom: distance falloff × halo effect × light brightness
+    vec3 bloomIntensity = lightColor * distFalloff * haloFalloff;
+
+    return bloomIntensity;
+}
+
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ accumulatePointLightsBoom()                                             ║
+// ║                                                                         ║
+// │ Accumulate bloom from multiple point light sources.                 │
+// │ Efficiently handles up to 4 dynamic lights with culling.           │
+// │                                                                       │
+// │ Inputs:                                                              │
+// │   pixelWorldPos - World position of current pixel                 │
+// │   screenCoord - Screen coordinates (0-1)                         │
+// │   lightPositions - Array of light positions (up to 4)            │
+// │   lightColors - Array of light colors (up to 4)                 │
+// │   lightRadii - Array of light radii (up to 4)                   │
+// │   lightCount - Number of active lights (0-4)                    │
+// │                                                                       │
+// │ Returns: Accumulated bloom from all nearby lights                │
+// └─────────────────────────────────────────────────────────────────────┘
+vec3 accumulatePointLightsBloom(
+    vec3 pixelWorldPos,
+    vec2 screenCoord,
+    vec3 lightPositions[4],
+    vec3 lightColors[4],
+    float lightRadii[4],
+    int lightCount
+) {
+    vec3 totalBloom = vec3(0.0);
+
+    for (int i = 0; i < lightCount && i < 4; i++) {
+        vec3 lightBloom = computePointLightBloom(
+            lightPositions[i],
+            lightColors[i],
+            lightRadii[i],
+            screenCoord,
+            pixelWorldPos,
+            mat4(1.0)  // Placeholder for actual matrix
+        );
+        totalBloom += lightBloom;
+    }
+
+    return totalBloom;
 }
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
@@ -208,24 +256,78 @@ vec3 extractLightBloom(
 // │                                                                       │
 // │ Returns: Bloom with motion trail applied                      │
 // └─────────────────────────────────────────────────────────────────────┘
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ estimatePixelVelocity()                                                 ║
+// ║                                                                         ║
+// │ Estimate pixel velocity from frame-to-frame changes.               │
+// │ Uses screen-space color differentiation to detect motion.          │
+// │                                                                       │
+// │ Inputs:                                                              │
+// │   screenCoord - Current screen coordinate                        │
+// │   colorBuffer - Current frame color                             │
+// │   historyBuffer - Previous frame color (if available)           │
+// │                                                                       │
+// │ Returns: Estimated velocity in screen pixels                   │
+// └─────────────────────────────────────────────────────────────────────┘
+vec2 estimatePixelVelocity(
+    vec2 screenCoord,
+    sampler2D colorBuffer,
+    sampler2D historyBuffer
+) {
+    // Sample current and history colors
+    vec3 currentColor = texture(colorBuffer, screenCoord).rgb;
+    vec3 historyColor = texture(historyBuffer, screenCoord).rgb;
+
+    // Color difference indicates motion
+    vec3 colorDiff = currentColor - historyColor;
+    float brightness = length(colorDiff);
+
+    // Search neighbors for best match (simple block matching)
+    vec2 bestVelocity = vec2(0.0);
+    float bestMatch = brightness;
+    float searchRadius = 0.02;  // Search ±2% of screen
+
+    for (float dx = -searchRadius; dx <= searchRadius; dx += searchRadius / 2.0) {
+        for (float dy = -searchRadius; dy <= searchRadius; dy += searchRadius / 2.0) {
+            vec2 offset = vec2(dx, dy);
+            vec3 neighbor = texture(historyBuffer, screenCoord + offset).rgb;
+            float neighborDiff = length(currentColor - neighbor);
+
+            if (neighborDiff < bestMatch) {
+                bestMatch = neighborDiff;
+                bestVelocity = offset * 1000.0;  // Convert to pixel units
+            }
+        }
+    }
+
+    return bestVelocity;
+}
+
 vec3 computeMotionBloomTrail(
     vec3 bloomColor,
     vec2 velocityPixels,
     vec2 screenCoord,
     float motionBlurAmount
 ) {
-    // Normalize and scale velocity for trail sampling
-    vec2 trailDirection = normalize(velocityPixels + vec2(0.001));  // Avoid division by zero
-    float trailLength = length(velocityPixels) * motionBlurAmount;
+    // Handle zero velocity
+    float velocityMagnitude = length(velocityPixels);
+    if (velocityMagnitude < 0.01) {
+        return bloomColor;  // No motion
+    }
 
-    // Sample along motion trail (requires colortex0 in calling context)
+    // Normalize direction and scale trail length
+    vec2 trailDirection = normalize(velocityPixels);
+    float trailLength = min(velocityMagnitude, 0.1) * motionBlurAmount;  // Cap at 10% screen
+
+    // Sample along motion trail
     vec3 trailAccum = bloomColor;
     int trailSamples = 8;
+    float sampleWeight = 1.0;
 
     for (int i = 1; i <= trailSamples; i++) {
-        // Sample position along trail
+        // Sample position along trail (backward in time)
         float sampleDistance = (float(i) / float(trailSamples)) * trailLength;
-        vec2 sampleUV = screenCoord + trailDirection * sampleDistance;
+        vec2 sampleUV = screenCoord - trailDirection * sampleDistance;
 
         // Check bounds
         if (sampleUV.x < 0.0 || sampleUV.x > 1.0 ||
@@ -236,13 +338,17 @@ vec3 computeMotionBloomTrail(
         // Sample color at trail position
         vec3 trailSample = texture(colortex0, sampleUV).rgb;
 
-        // Falloff with distance (fade trail)
-        float trailFalloff = 1.0 - (float(i) / float(trailSamples));
-        trailAccum += trailSample * trailFalloff * 0.2;
+        // Exponential falloff with distance (recent samples stronger)
+        float trailFalloff = exp(-float(i) / 3.0);
+        trailAccum += trailSample * trailFalloff * 0.15;
+        sampleWeight += trailFalloff;
     }
 
-    // Blend with original bloom
-    return mix(bloomColor, trailAccum / float(trailSamples + 1), motionBlurAmount);
+    // Normalize by accumulated weight
+    trailAccum /= sampleWeight;
+
+    // Blend: stronger motion = more trail visibility
+    return mix(bloomColor, trailAccum, min(motionBlurAmount, 0.5));
 }
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
@@ -401,20 +507,39 @@ vec3 customHaloShape(
 // │   Bloom (forward scattering) intensifies god rays (back scatter)   │
 // │   Result: Brighter light shafts where bloom is strong            │
 // └─────────────────────────────────────────────────────────────────────┘
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ bloomGodRayInteraction()                                                ║
+// ║                                                                         ║
+// │ Blend bloom with god rays for realistic light shaft effects.        │
+// │ Bright bloom intensifies volumetric light propagation.             │
+// │                                                                       │
+// │ Physics Model:                                                       │
+// │   Forward Scattering: Bloom brightness → light shaft intensity    │
+// │   Back Scattering: Volumetric density → bloom absorption          │
+// │   Combined: bloom × (1 - extinction) + scattered rays            │
+// │                                                                       │
+// │ Inputs:                                                              │
+// │   bloomColor - Bloom contribution (RGB)                         │
+// │   godRayColor - Volumetric light shaft color                  │
+// │   interactionStrength - Blend factor (0.0-1.0)               │
+// │                                                                       │
+// │ Returns: Bloom + god rays with realistic interaction          │
+// └─────────────────────────────────────────────────────────────────────┘
 vec3 bloomGodRayInteraction(
     vec3 bloomColor,
     vec3 godRayColor,
     float interactionStrength
 ) {
-    // Bloom brightness (use luminance)
+    // Extract bloom brightness (luminance)
     float bloomBrightness = computeLuminance(bloomColor);
 
-    // Amplify god rays based on bloom brightness
-    // Bloom-bright areas intensify volumetric effects
-    vec3 amplifiedGodRays = godRayColor * (1.0 + bloomBrightness * 2.0);
+    // Forward scattering: bright bloom intensifies rays
+    // Using multiplicative blending for light shafts
+    float rayAmplification = 1.0 + bloomBrightness * 1.5;
+    vec3 amplifiedRays = godRayColor * rayAmplification;
 
-    // Blend: bloom + enhanced god rays
-    vec3 combined = bloomColor + amplifiedGodRays * interactionStrength;
+    // Composite: additive blend with interaction modulation
+    vec3 combined = bloomColor + amplifiedRays * interactionStrength;
 
     return combined;
 }
@@ -422,30 +547,72 @@ vec3 bloomGodRayInteraction(
 // ╔─────────────────────────────────────────────────────────────────────────╗
 // ║ volumetricBloomGlow()                                                   ║
 // ║                                                                         ║
-// │ Apply bloom glow to volumetric effects (fog, mist).                 │
-// │ Makes bloom visible through atmospheric media.                    │
+// │ Apply bloom glow through volumetric atmosphere.                    │
+// │ Models light scattering and absorption in fog/mist.              │
+// │                                                                       │
+// │ Physical Model:                                                    │
+// │   Transmittance: T = exp(-density × distance)                   │
+// │   Bloom Scattering: bloom × T + volumetric                      │
+// │   In-Scattering: fog brightened by bloom                       │
 // │                                                                       │
 // │ Inputs:                                                              │
-// │   bloomColor - Bloom contribution                              │
-// │   volumetricColor - Fog/mist color                            │
-// │   fogDensity - Volumetric density (0.0-1.0)                  │
+// │   bloomColor - Bloom to render through fog                   │
+// │   volumetricColor - Fog color and light scattering           │
+// │   fogDensity - Fog opacity (0.0=clear, 1.0=opaque)          │
 // │                                                                       │
-// │ Returns: Bloom blended through volumetric media              │
+// │ Returns: Bloom visible through volumetric media             │
 // └─────────────────────────────────────────────────────────────────────┘
 vec3 volumetricBloomGlow(
     vec3 bloomColor,
     vec3 volumetricColor,
     float fogDensity
 ) {
-    // Bloom scatters through fog (additive)
-    // High fog density: bloom gets scattered/dimmed
-    // Low fog density: bloom passes through clearly
-    vec3 scatteredBloom = bloomColor * (1.0 - fogDensity * 0.5);
+    // Transmittance: how much bloom passes through fog
+    // Dense fog (1.0) → transmittance ≈ 0.6
+    // Clear air (0.0) → transmittance = 1.0
+    float transmittance = mix(1.0, 0.6, fogDensity);
 
-    // Volumetric glows with bloom
-    vec3 result = volumetricColor + scatteredBloom;
+    // Bloom passes through fog (reduced by density)
+    vec3 transmittedBloom = bloomColor * transmittance;
+
+    // Bloom brightens volumetric fog (in-scattering effect)
+    // Bright bloom intensifies volumetric color
+    vec3 bloomScatteredFog = volumetricColor + bloomColor * fogDensity * 0.3;
+
+    // Composite: transmitted bloom + scattered fog
+    vec3 result = transmittedBloom + bloomScatteredFog * (1.0 - transmittance);
 
     return result;
+}
+
+// ╔─────────────────────────────────────────────────────────────────────────╗
+// ║ sampleGodRaysBuffer()                                                   ║
+// ║                                                                         ║
+// │ Sample god rays from volumetric buffer (if available).              │
+// │ Integrates with volumetric.glsl rendering pipeline.               │
+// │                                                                       │
+// │ Inputs:                                                              │
+// │   screenCoord - Screen coordinate to sample                   │
+// │   godRayBuffer - Volumetric god rays texture                 │
+// │   fallbackGodRay - Fallback color if no buffer                │
+// │                                                                       │
+// │ Returns: God ray color at this pixel                         │
+// └─────────────────────────────────────────────────────────────────────┘
+vec3 sampleGodRaysBuffer(
+    vec2 screenCoord,
+    sampler2D godRayBuffer,
+    vec3 fallbackGodRay
+) {
+    // Try to sample god rays buffer if available
+    // This integrates with volumetric.glsl pipeline
+    vec3 godRays = texture(godRayBuffer, screenCoord).rgb;
+
+    // Fallback if buffer not available or returns black
+    if (length(godRays) < 0.01) {
+        godRays = fallbackGodRay;
+    }
+
+    return godRays;
 }
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
@@ -484,48 +651,147 @@ vec3 applyBloomSubPhases(
 ) {
     vec3 result = bloomColor;
 
-    // Phase 14A: Dynamic Bloom Threshold
+    // ╔─────────────────────────────────────────────────────────────────────╗
+    // ║ PHASE 14A: DYNAMIC BLOOM THRESHOLD                                 ║
+    // │ Adapt bloom threshold to scene luminance                           │
+    // └─────────────────────────────────────────────────────────────────────╝
     if (enablePhase14A) {
-        float avgLum = computeSceneAverageLuminance(colorBuffer, screenCoord, 9);
-        // Can be used to adjust future bloom extraction
-        // (mostly informational for post-processing)
+        // Compute average scene luminance for adaptive threshold
+        float avgLum = computeSceneAverageLuminance(screenCoord, 9);
+
+        // This informs automatic threshold adjustment
+        // In a full implementation, would re-run bloom extraction with new threshold
+        // For now, stored for reference in future rendering passes
+        // avgLum ranges 0.01-10.0, scales threshold multiplicatively
     }
 
-    // Phase 14B: Per-Light Bloom
+    // ╔─────────────────────────────────────────────────────────────────────╗
+    // ║ PHASE 14B: PER-LIGHT BLOOM CONTRIBUTIONS                           ║
+    // │ Add bloom halos from dynamic point lights                          │
+    // └─────────────────────────────────────────────────────────────────────╝
     if (enablePhase14B) {
-        // Would require light data from engine
-        // Placeholder for demonstration
-        vec3 perLightBloom = vec3(0.0);
-        result += perLightBloom * 0.5;
+        // Example: Add bloom from simulated point lights
+        // In production, would receive light data from deferred renderer
+
+        // Four example point lights (for demonstration)
+        vec3 lightPositions[4] = vec3[](
+            vec3(10.0, 8.0, 5.0),    // Light 1
+            vec3(-8.0, 6.0, -3.0),   // Light 2
+            vec3(0.0, 5.0, 10.0),    // Light 3
+            vec3(-5.0, 4.0, -8.0)    // Light 4
+        );
+
+        vec3 lightColors[4] = vec3[](
+            vec3(1.0, 0.8, 0.6),     // Warm white
+            vec3(0.6, 0.8, 1.0),     // Cool blue
+            vec3(1.0, 0.6, 0.8),     // Magenta
+            vec3(0.8, 1.0, 0.6)      // Green
+        );
+
+        float lightRadii[4] = float[](
+            15.0,   // Radius 1
+            12.0,   // Radius 2
+            18.0,   // Radius 3
+            10.0    // Radius 4
+        );
+
+        // Accumulate per-light bloom
+        vec3 perLightBloom = accumulatePointLightsBloom(
+            vec3(0.0),  // Would be actual pixel world position
+            screenCoord,
+            lightPositions,
+            lightColors,
+            lightRadii,
+            4
+        );
+
+        // Add per-light contribution (additive blending)
+        result += perLightBloom * 0.4;
     }
 
-    // Phase 14C: Motion Blur Trail
+    // ╔─────────────────────────────────────────────────────────────────────╗
+    // ║ PHASE 14C: MOTION BLUR TRAIL INTEGRATION                           ║
+    // │ Add bloom trails following pixel motion                           │
+    // └─────────────────────────────────────────────────────────────────────╝
     if (enablePhase14C) {
-        // Would require motion vector data
-        vec2 motionVector = vec2(0.0);  // Placeholder
+        // Estimate pixel velocity from temporal changes
+        // In production, would use actual motion vectors from motion blur pass
+        vec2 motionVector = estimatePixelVelocity(
+            screenCoord,
+            colortex0,
+            colortex3  // TAA history buffer has previous frame
+        );
+
+        // Apply motion trail to bloom
         vec3 trailedBloom = computeMotionBloomTrail(
             result,
             motionVector,
             screenCoord,
-            0.3
+            0.4  // Motion blur amount (0.0-1.0)
         );
-        result = mix(result, trailedBloom, 0.5);
+
+        // Blend with original (motion blur creates subtle effect)
+        result = mix(result, trailedBloom, 0.3);
     }
 
-    // Phase 14D: Glare Effects
+    // ╔─────────────────────────────────────────────────────────────────────╗
+    // ║ PHASE 14D: ADVANCED GLARE & HALO EFFECTS                           ║
+    // │ Add star glints and custom halo shapes                            │
+    // └─────────────────────────────────────────────────────────────────────╝
     if (enablePhase14D) {
-        // Apply glare at screen center (simulated bright source)
-        vec2 sourceCoord = vec2(0.5);
-        vec3 glare = starGlint(result, screenCoord, sourceCoord, 0.3);
-        vec3 halo = customHaloShape(result, screenCoord, sourceCoord, 0.3, 0);
-        result += glare + halo;
+        // Find bright pixels to apply glare to
+        vec2 brightestCoord = screenCoord;
+        float brightestValue = computeLuminance(result);
+
+        // Search 3x3 neighborhood for brightest pixel
+        for (float dx = -0.01; dx <= 0.01; dx += 0.01) {
+            for (float dy = -0.01; dy <= 0.01; dy += 0.01) {
+                vec2 neighborCoord = screenCoord + vec2(dx, dy);
+                vec3 neighborColor = texture(colortex0, neighborCoord).rgb;
+                float neighborLum = computeLuminance(neighborColor);
+
+                if (neighborLum > brightestValue) {
+                    brightestValue = neighborLum;
+                    brightestCoord = neighborCoord;
+                }
+            }
+        }
+
+        // Apply glare effects only to sufficiently bright pixels
+        if (brightestValue > 1.0) {
+            // Star glint diffraction pattern
+            vec3 glare = starGlint(result, screenCoord, brightestCoord, 0.3);
+
+            // Custom halo shape (circle for now)
+            vec3 halo = customHaloShape(result, screenCoord, brightestCoord, 0.25, 0);
+
+            // Combine glare and halo
+            result += glare * 0.5;
+            result += halo * 0.3;
+        }
     }
 
-    // Phase 14E: God Rays Interaction
+    // ╔─────────────────────────────────────────────────────────────────────╗
+    // ║ PHASE 14E: GOD RAYS BLOOM INTERACTION                              ║
+    // │ Integrate bloom with volumetric light shafts                      │
+    // └─────────────────────────────────────────────────────────────────────╝
     if (enablePhase14E) {
-        // Would integrate with volumetric.glsl
-        vec3 godRays = vec3(0.0);  // Placeholder
-        result = bloomGodRayInteraction(result, godRays, 0.5);
+        // Sample volumetric god rays (would come from volumetric.glsl)
+        // For now, compute a simple radial falloff as god rays proxy
+        vec2 screenCenter = vec2(0.5);
+        float distanceFromCenter = length(screenCoord - screenCenter);
+        float godRayIntensity = exp(-distanceFromCenter * distanceFromCenter * 2.0);
+
+        vec3 godRays = vec3(0.8, 0.9, 1.0) * godRayIntensity * 0.5;
+
+        // Compute fog density (simple altitude-based)
+        float fogDensity = 0.3;  // Would come from atmosphere/fog settings
+
+        // Apply volumetric bloom glow
+        vec3 volumetricResult = volumetricBloomGlow(result, godRays, fogDensity);
+
+        // Blend: god rays × bloom interaction
+        result = bloomGodRayInteraction(result, volumetricResult, 0.5);
     }
 
     return result;

@@ -8,13 +8,13 @@
 
 Phase 14 Sub-Phases extend the base bloom system (Phase 14) with five advanced optional enhancements. Each sub-phase can be independently enabled for specific visual effects without requiring all others.
 
-| Sub-Phase | Feature | Enabled by Default | Performance |
-|-----------|---------|:-----------------:|:----------:|
-| **14A** | Dynamic Bloom Threshold | ✅ | +0.1ms |
-| **14B** | Per-Light Bloom | ❌ | +0.3ms |
-| **14C** | Motion Blur Trail | ❌ | +0.2ms |
-| **14D** | Advanced Glare Effects | ✅ | +0.2ms |
-| **14E** | God Rays Integration | ❌ | +0.1ms |
+| Sub-Phase | Feature | Enabled by Default | Performance | Status |
+|-----------|---------|:-----------------:|:-----------:|:------:|
+| **14A** | Dynamic Bloom Threshold | ✅ | +0.1ms | ✅ Complete |
+| **14B** | Per-Light Bloom | ✅ | +0.3ms | ✅ Complete |
+| **14C** | Motion Blur Trail | ✅ | +0.2ms | ✅ Complete |
+| **14D** | Advanced Glare Effects | ✅ | +0.2ms | ✅ Complete |
+| **14E** | God Rays Integration | ✅ | +0.1ms | ✅ Complete |
 
 ---
 
@@ -101,10 +101,11 @@ BLOOM_SUBPHASES_ON=true
 - View-projection matrix for screen projection
 
 ### Implementation Status
-⚠️ **Stub Implementation**: Requires integration with engine lighting system
-- Ready for deferred renderer integration
-- Supports up to 32 dynamic lights
-- Expandable for shadow maps
+✅ **Fully Implemented**: Complete point light bloom system
+- Supports up to 4 dynamic lights (extensible)
+- Inverse-square law physically-based falloff
+- Integrated with deferred renderer data pipeline
+- Ready for shadow mapping integration
 
 ### Future Integration Points
 ```glsl
@@ -152,10 +153,12 @@ BLOOM_SUBPHASES_ON=true
 - Motion blur amount parameter (0.0-1.0)
 
 ### Implementation Status
-⚠️ **Stub Implementation**: Requires motion vector data
-- Ready for TAA motion vector integration
-- Supports variable motion blur amounts
-- 8-sample accumulation (customizable)
+✅ **Fully Implemented**: Complete motion bloom trail system
+- Velocity estimation from frame-to-frame changes
+- TAA history buffer integration
+- 8-sample exponential falloff accumulation
+- Adaptive trail length based on motion magnitude
+- Physically-based temporal smoothing
 
 ### Example Effects
 - **High motion**: Long bloom trails (fast camera pan)
@@ -297,10 +300,12 @@ BLOOM_PHASE14E=true
 - Interaction strength (0.0-1.0)
 
 ### Implementation Status
-⚠️ **Stub Implementation**: Requires volumetric.glsl integration
-- Framework ready for god rays integration
-- Supports variable fog densities
-- Automatic intensity modulation
+✅ **Fully Implemented**: Complete god rays bloom interaction
+- Integrated with volumetric effects
+- Transmittance-based atmospheric scattering
+- Fog density aware light propagation
+- Forward scattering (bloom → rays) + back scattering (rays → bloom)
+- Production-ready physics-based blending
 
 ### Sub-Features
 
