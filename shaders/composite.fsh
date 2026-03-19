@@ -34,6 +34,7 @@
 #include "lib/indirect_lighting.glsl"
 #include "lib/image_based_lighting.glsl"
 #include "lib/screen_space_gi.glsl"
+#include "lib/realtime_ray_tracing.glsl"
 #include "lib/temporal_anti_aliasing.glsl"
 #include "lib/bloom_and_spectral.glsl"
 #include "lib/bloom_subphases.glsl"
