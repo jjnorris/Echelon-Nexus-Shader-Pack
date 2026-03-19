@@ -50,6 +50,7 @@ uniform mat4 shadowModelView;     // Light's view matrix
 #include "lib/viewport.glsl"
 #include "lib/shadow_sampling.glsl"
 #include "lib/blue_noise.glsl"
+#include "lib/block_light_colors.glsl"
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ VARYINGS                                                                  ║
@@ -128,6 +129,32 @@ void main() {
         f0,
         gbuffer2.a  // height (unused in deferred for now)
     );
+
+    // ╔─────────────────────────────────────────────────────────────────────╗
+    // ║ Step 3b: PHASE 2 - Sample Block Light (Minecraft-Aware Lighting)   ║
+    // ║                                                                       ║
+    // ║ Sample the lightmap to extract block light and sky light levels.   ║
+    // ║ Block light (X): Light from torches, lava, glowing blocks (0-15)   ║
+    // ║ Sky light (Y): Ambient light from sky (0-15)                       ║
+    // ║                                                                       ║
+    // ║ These will be used to add colored light contributions to the       ║
+    // ║ deferred result, making torches glow orange, lava red, etc.        ║
+    // ╚─────────────────────────────────────────────────────────────────────╝
+
+    // In Minecraft, lightmap texture uses two 4-bit channels:
+    // X coordinate: Block light level (0-1 maps to 0-15)
+    // Y coordinate: Sky light level (0-1 maps to 0-15)
+    // These come from the vertex shader (vTexCoordLight)
+
+    // For now, we'll use a simple approximation since we don't have
+    // direct access to the lightmap in this deferred pass.
+    // TODO: Pass block light level through G-buffer in future optimization
+
+    float blockLightLevel = 0.0;     // Will be populated from lightmap data
+    float skyLightLevel = 15.0;      // Default to full sky light
+
+    // Get colored light contributions
+    vec3 blockLightColor = getBlockLightColor(blockLightLevel);
 
     // ╔─────────────────────────────────────────────────────────────────────╗
     // ║ Step 4: Direct Lighting (PHASE 5-6)                                ║
@@ -256,16 +283,89 @@ void main() {
     ambientLight = max(ambientLight, minAmbient);
 
     // ╔─────────────────────────────────────────────────────────────────────╗
+    // ║ Step 5b: PHASE 2 - Moon Phase Lighting Adjustment                  ║
+    // ║                                                                       ║
+    // ║ Adjust lighting based on moon phase (full moon vs new moon).        ║
+    // ║ Moon light intensity varies by ~15-20% throughout the cycle.       ║
+    // ╚─────────────────────────────────────────────────────────────────────╝
+
+    // Calculate moon phase from time (0-1 normalized)
+    // Full cycle: 0-1 represents new moon to full moon and back
+    // Using frameCounter as proxy for time (TODO: use actual worldTime uniform)
+    float moonPhase = mod(float(frameCounter) * 0.001 + 0.5, 1.0);
+
+    // Moon brightness varies sinusoidally with phase
+    // Full moon (phase 0.0 or 1.0) = maximum brightness
+    // New moon (phase 0.5) = minimum brightness (~20% of full moon)
+    float moonPhaseBrightness = 0.8 + 0.2 * cos(moonPhase * 6.28318530718);
+
+    // Apply moon phase to ambient brightness at night
+    float nightMoonInfluence = mix(moonPhaseBrightness, 1.0, smoothstep(0.0, 0.3, sunHeight));
+    ambientLight *= nightMoonInfluence;
+
+    // ╔─────────────────────────────────────────────────────────────────────╗
+    // ║ Step 5c: PHASE 2 - Biome-Specific Color Influence                  ║
+    // ║                                                                       ║
+    // ║ Adjust lighting colors based on biome type (forest, desert, etc).   ║
+    // ║ This gives distinct visual identity to different environments.      ║
+    // ║                                                                       ║
+    // ║ For Phase 2: Use simple color tinting based on albedo analysis.     ║
+    // ║ Future: Use actual biome data from shader framework.                ║
+    // ╚─────────────────────────────────────────────────────────────────────╝
+
+    // Analyze albedo to guess biome type (for Phase 2 without biome data)
+    vec3 biomeColorTint = vec3(1.0);  // Default: no tint
+
+    // If material is very green (grass/foliage): forest biome
+    if (albedo.g > albedo.r * 1.3 && albedo.g > albedo.b) {
+        // Forest: Slightly more blue-green ambient
+        biomeColorTint = mix(vec3(1.0), vec3(0.9, 1.0, 0.95), 0.15);
+    }
+    // If material is very red/brown (sand/desert blocks)
+    else if (albedo.r > 0.6 && albedo.g < albedo.r * 0.8) {
+        // Desert: Slightly warmer ambient (more red-yellow)
+        biomeColorTint = mix(vec3(1.0), vec3(1.05, 0.98, 0.9), 0.15);
+    }
+    // If material is very dark (cave/underground)
+    else if (max(max(albedo.r, albedo.g), albedo.b) < 0.3) {
+        // Underground: Slightly bluer ambient for cool cave feel
+        biomeColorTint = mix(vec3(1.0), vec3(0.95, 0.97, 1.05), 0.1);
+    }
+
+    // Apply biome tint to ambient light
+    ambientLight *= biomeColorTint;
+
+    // ╔─────────────────────────────────────────────────────────────────────╗
     // ║ Step 6: Emissive (PHASE 5)                                         ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
     vec3 emissiveLight = albedo * emissive * 0.5;  // Reduced from 2.0
 
     // ╔─────────────────────────────────────────────────────────────────────╗
-    // ║ Step 7: Combine Lighting                                           ║
+    // ║ Step 7: PHASE 2 - Block Light Contribution                         ║
+    // ║                                                                       ║
+    // ║ Add colored light from block sources (torches, lava, etc).         ║
+    // ║ This is additive on top of direct+ambient+emissive lighting.       ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    vec3 finalColor = ambientLight + directLight + emissiveLight;
+    // For Phase 2: Placeholder block light
+    // In future phases, this will come from lightmap sampling
+    vec3 blockLightContribution = vec3(0.0);
+
+    // If block light level > 0, add colored contribution
+    if (blockLightLevel > 0.0) {
+        blockLightContribution = applyBlockLightSimple(
+            vec3(0.0),  // Start from zero (we're adding light)
+            blockLightColor,
+            blockLightLevel
+        );
+    }
+
+    // ╔─────────────────────────────────────────────────────────────────────╗
+    // ║ Step 8: Combine All Lighting                                       ║
+    // ╚─────────────────────────────────────────────────────────────────────╝
+
+    vec3 finalColor = ambientLight + directLight + emissiveLight + blockLightContribution;
 
     // Safety clamp (prevents NaN propagation)
     finalColor = clamp(finalColor, 0.0, 100.0);
