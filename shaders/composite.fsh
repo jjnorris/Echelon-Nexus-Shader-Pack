@@ -94,9 +94,9 @@ void main() {
     // ║ and improves cache locality.                                       ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    // DEBUG: Output albedo from colortex0 (should have data now if alphaTest was the issue)
-    vec3 albedo = texture(colortex0, vTexCoord).rgb;
-    colortex0_out = vec4(albedo, 1.0);
+    // DEBUG: Output deferred result (lit scene from deferred pass)
+    vec3 litScene = texture(colortex0, vTexCoord).rgb;
+    colortex0_out = vec4(litScene, 1.0);
     return;
 
     // Single read of lit scene

@@ -4,6 +4,8 @@
 
 #version 330 compatibility
 
+/* RENDERTARGETS: 4,5,6 */
+
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ UNIFORM INPUTS (for material_sampling.glsl functions)                    ║
 // ╚───────────────────────────────────────────────────────────────────────────╝
@@ -29,10 +31,9 @@ layout(location = 1) out vec4 colortex1;
 layout(location = 2) out vec4 colortex2;
 
 void main() {
-    // DISABLED for debugging
-    // if (!alphaTest(vTexCoord, 0.5)) {
-    //     discard;
-    // }
+    if (!alphaTest(vTexCoord, 0.5)) {
+        discard;
+    }
 
     Material material = sampleMaterialComplete(
         vTexCoord,

@@ -2,12 +2,14 @@
 // Echelon Nexus - Terrain Fragment Shader (Solid & Cutout)
 // ===================================================================
 // Purpose: Capture terrain G-buffers (color, material, normals)
-// Output:  colortex0 (lit color / albedo)
-//          colortex1 (material: roughness, metallic, emissive)
-//          colortex2 (normals + depth)
+// Output:  colortex4 (albedo)
+//          colortex5 (material: roughness, metallic, emissive)
+//          colortex6 (normals + depth)
 // ===================================================================
 
 #version 330 compatibility
+
+/* RENDERTARGETS: 4,5,6 */
 
 // ╔───────────────────────────────────────────────────────────────────────────╗
 // ║ UNIFORM INPUTS (for material_sampling.glsl functions)                    ║
@@ -47,10 +49,10 @@ layout(location = 2) out vec4 colortex2;  // Normals + depth
 // ===================================================================
 
 void main() {
-    // Step 1: Alpha test (DISABLED for debugging)
-    // if (!alphaTest(vTexCoord, 0.5)) {
-    //     discard;
-    // }
+    // Step 1: Alpha test
+    if (!alphaTest(vTexCoord, 0.5)) {
+        discard;
+    }
 
     // Step 2: Sample and decode material
     // Use LabPBR format by default (pbrMode=0)

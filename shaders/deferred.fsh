@@ -21,9 +21,9 @@
 // ║ Declared BEFORE includes so library files can reference these uniforms.  ║
 // ╚───────────────────────────────────────────────────────────────────────────╝
 
-uniform sampler2D colortex0;  // G-buffer 0: Albedo (RGB) + Alpha
-uniform sampler2D colortex1;  // G-buffer 1: Material (roughness, metallic, emissive)
-uniform sampler2D colortex2;  // G-buffer 2: Normal (oct-encoded) + Depth
+uniform sampler2D colortex4;  // G-buffer 4: Albedo (RGB) + Alpha
+uniform sampler2D colortex5;  // G-buffer 5: Material (roughness, metallic, emissive)
+uniform sampler2D colortex6;  // G-buffer 6: Normal (oct-encoded) + Depth
 uniform sampler2D shadowtex0; // Shadow depth map
 uniform sampler2D depthtex0;  // Depth texture (needed by viewport.glsl functions)
 uniform sampler2D noisetex;   // Blue noise for dithering
@@ -72,9 +72,9 @@ void main() {
     // ║ Step 1: Read G-buffers (PHASE 2-4)                                 ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    vec4 gbuffer0 = texture(colortex0, vTexCoord);   // Albedo + alpha
-    vec4 gbuffer1 = texture(colortex1, vTexCoord);   // Material properties
-    vec4 gbuffer2 = texture(colortex2, vTexCoord);   // Normal + depth
+    vec4 gbuffer0 = texture(colortex4, vTexCoord);   // Albedo + alpha
+    vec4 gbuffer1 = texture(colortex5, vTexCoord);   // Material properties
+    vec4 gbuffer2 = texture(colortex6, vTexCoord);   // Normal + depth
 
     // Early exit for fully transparent pixels
     if (gbuffer0.a < 0.001) {
