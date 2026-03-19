@@ -1,8 +1,8 @@
 # 🌌 Echelon Nexus Shader Pack
 
-> **Pursuing Rigorous Photorealism for Minecraft Java Edition 1.21.11**
+> **Photorealistic Rendering for Minecraft Java Edition 1.21.11**
 
-Echelon Nexus is a production-grade shader pack built on rigorous physically-based rendering (PBR) principles, modular architecture, and scalable quality tiers. Designed to work seamlessly with the accompanying **Echelon Nexus Texture Pack**, this shader pack prioritizes **photorealistic light behavior**, **accurate optical physics**, and **architectural cohesion**. Creating visuals that feel genuinely real while maintaining Minecraft's iconic blocky aesthetic. Built for a complete realism experience combining shader and texture assets, Echelon Nexus delivers photorealism across five hardware tiers from integrated graphics to RTX workstations.
+Echelon Nexus is a production-grade shader pack built on physically-based rendering (PBR) principles, modular architecture, and scalable quality tiers. Designed to work with the **Echelon Nexus Texture Pack**, it prioritizes photorealistic light behavior, accurate optical physics, and coherent visual systems. Delivering genuine realism across five hardware tiers—from integrated graphics to RTX workstations.
 
 **Version**: 2.0.0 (Alpha) | **Status**: Phase 1-5 Complete, Phase 6+ Library Code Ready | **Last Updated**: March 2026
 
@@ -20,18 +20,17 @@ Echelon Nexus is a production-grade shader pack built on rigorous physically-bas
 
 ## 🎯 Philosophy & Design Goals
 
-Minecraft deserves lighting that respects photorealistic principles while adapting to blocky world geometry. Combined with a carefully-designed texture pack, Echelon Nexus achieves genuine photorealism through:
+Minecraft's blocky geometry deserves lighting that respects optical physics. Echelon Nexus achieves this through:
 
-- **Physically-Based Rendering**: Cook-Torrance GGX microfacet model with proper energy conservation and physically-accurate light behavior
-- **Photorealistic Material Systems**: LabPBR support for accurate metallics, dielectrics, roughness, and emissive materials
-- **Modular Architecture**: 160+ documented systems across 29 development phases for maintainability and scalability
-- **Scalable Quality Tiers**: From integrated graphics (60 FPS) to cinema-quality rendering (30+ FPS), all achieving photorealistic results
-- **Optical Physics Accuracy**: Gerstner waves, spectral effects, thin-film interference, subsurface scattering, and atmospheric scattering. All based on real optics
-- **Texture Pack Integration**: Designed from inception to work with the Echelon Nexus Texture Pack for cohesive, photorealistic worlds
-- **Artist-Friendly Configuration**: 100+ adjustable parameters with sensible presets for different photorealism aesthetics
-- **Zero Technical Debt**: Comprehensive documentation for every function, formula, and design decision
+- **Physically-Based Rendering**: Cook-Torrance GGX microfacet BRDF with proper energy conservation
+- **Material Accuracy**: LabPBR support for metallics, dielectrics, roughness, and emissive properties
+- **Comprehensive Implementation**: 160+ systems across 29 phases, fully documented
+- **Scalable Architecture**: Five quality tiers (LOW to CINEMA) supporting integrated graphics to RTX workstations
+- **Optical Physics**: Gerstner waves, spectral effects, thin-film interference, subsurface scattering, atmospheric scattering
+- **System Integration**: Designed to work with Echelon Nexus Texture Pack for cohesive results
+- **Full Documentation**: Every function, formula, and design decision documented
 
-Echelon Nexus **pursues photorealism rigorously**. Not through brute-force computing power, but through respect for optical physics, careful material encoding, and integration with complementary texture assets. The result is a complete visual system (shader + textures) that looks authentically real while honoring Minecraft's blocky, modular nature.
+Photorealism emerges not from raw computing power, but from respect for optical physics, proper material encoding, and integrated texture systems.
 
 ---
 
@@ -280,83 +279,26 @@ The sky isn't a gradient.it's **simulated from real atmospheric optics**. Raylei
 
 ---
 
-## 🎬 The Echelon Nexus Complete System: Shader + Texture Pack
+## 🎬 The Complete System: Shader + Texture Pack
 
-Echelon Nexus is **not just a shader**.it's a complete photorealistic visual system. The accompanying **Echelon Nexus Texture Pack** is engineered specifically to work with this shader, providing:
+Echelon Nexus is designed as a unified visual system. The accompanying **Echelon Nexus Texture Pack** encodes physical properties (smoothness, metallic, emissive) as LabPBR materials, complementing this shader's rendering approach.
 
-- **LabPBR-Encoded Materials**: Every texture encodes physical properties (smoothness, metallic, emissive) for photorealistic rendering
-- **High-Resolution Details**: 64px base resolution with procedural detail for infinite visual depth
-- **Physically-Accurate Colors**: RGB values matched to real-world material reflectance
-- **Complementary Normal Maps**: Surface detail optimized for this shader's normal mapping approach
-- **Cohesive Aesthetic**: All 1,000+ textures designed to look real together, not disparate
-
-**The shader and texture pack are designed as a unified system.** Using Echelon Nexus shader with vanilla textures will look good.but using it with the Echelon Nexus Texture Pack unleashes the full photorealistic potential, where every surface material behaves like its real-world counterpart.
+The shader alone integrates with any texture pack, but the texture pack amplifies the effect, where every surface responds like its real-world counterpart. This is photorealism as a system, not isolation.
 
 ---
 
-## 📊 Comparison with Other Leading Shader Packs
+## 📊 Comparison with Other Shader Packs
 
-I deeply respect the shader community. Each pack below excels in specific areas, and I recommend them enthusiastically for their intended use cases. Here's how Echelon Nexus' photorealism-focused approach fits into the ecosystem:
+| Your Priority | Best Choice | Why |
+|---------------|------------|-----|
+| Maximum customization | BSL Shaders | 50+ settings for fine-tuned control |
+| Balanced accessibility | Complementary Reimagined | Beauty + performance + universal compatibility |
+| Highest FPS | Photon Shaders | Optimized for performance without sacrificing quality |
+| Artistic atmosphere | Bliss Shaders | Cohesive biome-specific mood and artistry |
+| Photorealistic physics | **Echelon Nexus** | **Optical accuracy, PBR materials, designed with texture pack** |
+| Maximum visual fidelity | SEUS PTGI / Continuum | Path-traced approximation on high-end hardware |
 
-### **vs BSL Shaders** ⭐⭐⭐⭐⭐
-**What BSL Does Better**: Unmatched customization (50+ sliders), softest artistic lighting, best for stylized screenshot content
-**What Echelon Does Better**: Photorealistic light physics, accurate material rendering, optical accuracy (spectral bloom, thin-film interference), comprehensive physics documentation
-**When to Choose BSL**: You want the most tweakable shader for artistic/stylized content. Absolutely phenomenal for creative screenshots with custom look.
-**When to Choose Echelon**: You want photorealistic rendering that respects optical physics, designed to work with photorealistic textures for a complete real-world visual system.
-**Verdict**: **BSL is superior for artistic customization and stylized work.** If you live in Shader Options fine-tuning the aesthetic, BSL is your shader. Echelon prioritizes photorealism and optical accuracy.
-
----
-
-### **vs Complementary Reimagined** ⭐⭐⭐⭐⭐
-**What Complementary Does Better**: Best balance of beauty & performance, "just works" out of box, lightest on mid-range hardware, most accessible to new players
-**What Echelon Does Better**: Photorealistic rendering with physically-accurate optics, advanced material physics (SSS, thin-film interference, spectral effects), designed for complementary texture pack system
-**When to Choose Complementary**: You want a shader that looks gorgeous immediately with zero tweaking and works with any texture pack. Perfect for casual survival gameplay and everyone's first shader.
-**When to Choose Echelon**: You want photorealistic rendering that respects real-world optical physics, paired with purpose-built textures for a complete visual system that looks genuinely real.
-**Verdict**: **Complementary is superior for convenience and accessibility.** It's the safest recommendation. Echelon trades some out-of-box convenience for photorealistic accuracy and a complete visual system (shader + textures).
-
----
-
-### **vs Photon Shaders** ⭐⭐⭐⭐⭐
-**What Photon Does Better**: Highest FPS while maintaining quality, sharpest modern look, best for performance-conscious gamers
-**What Echelon Does Better**: Physics-based optical effects, layered materials, comprehensive documentation
-**When to Choose Photon**: You care about FPS more than novel effects. Streaming? Competitive gaming? Photon is untouchable.
-**When to Choose Echelon**: You have the GPU headroom and want to explore what physics-based rendering can achieve aesthetically.
-**Verdict**: **Photon is superior for performance.** If you're running at 240 FPS and want it stable, Photon is your answer. Echelon prioritizes novel effects over raw frame rate.
-
----
-
-### **vs Bliss Shaders** ⭐⭐⭐⭐
-**What Bliss Does Better**: Gorgeous fantasy atmosphere, excellent scene variation per biome, artistic coherence
-**What Echelon Does Better**: Physical light behavior, optical accuracy, technical documentation
-**When to Choose Bliss**: You want a fantasy art style that feels cohesive and atmospheric across biomes.
-**When to Choose Echelon**: You want physics-respecting rendering with novel optical phenomena.
-**Verdict**: **Bliss is superior for artistic atmosphere.** Its biome-specific mood is unmatched. Echelon prioritizes physics over artistry (though they're not mutually exclusive).
-
----
-
-### **vs SEUS PTGI / Continuum** ⭐⭐⭐⭐⭐ (Legacy)
-**What These Do Better**: Closest approximation to path-traced rendering, maximum visual fidelity, uncompromising quality
-**What Echelon Does Better**: Performance on mid-range hardware, modern codebase, active support for 1.21.11
-**When to Choose SEUS/Continuum**: You have high-end hardware and want maximum visual intensity (accept lower FPS).
-**When to Choose Echelon**: You want impressive visuals that work on more hardware tiers.
-**Verdict**: **SEUS/Continuum are superior for maximum quality.** They're legacy but still stunning. Echelon balances quality and performance more aggressively.
-
----
-
-## 🎯 Choosing Your Shader: A Decision Framework
-
-| Priority | Recommended Shader | Why |
-|----------|-------------------|-----|
-| **Maximum customization** | BSL Shaders | 50+ settings, studio lighting, artistic control |
-| **Best balance & accessibility** | Complementary Reimagined | Beauty + performance + convenience + works with any textures |
-| **Highest FPS** | Photon Shaders | Sharpest look, most stable performance, best for streaming |
-| **Fantasy atmosphere** | Bliss Shaders | Biome-specific mood, artistic coherence, stylized look |
-| **Photorealistic rendering** | **Echelon Nexus** | **Optical physics accuracy, photorealistic materials, designed with texture pack** |
-| **Complete visual system** | **Echelon Nexus + Texture Pack** | **Shader + textures engineered together for genuine photorealism** |
-| **Maximum quality (no FPS cap)** | SEUS PTGI / Continuum | Path-traced approximations, extreme fidelity |
-| **Mobile/integrated graphics** | Photon Shaders or Echelon Nexus LOW | High performance or Echelon's optimized baseline |
-
-**The Honest Truth**: The shader community is incredible. You probably can't make a wrong choice. Try several, see what resonates with your hardware and playstyle. Each pack is a labor of love by dedicated developers.
+Each shader excels in its focus area. The shader community is collaborative and innovative; choose based on your hardware and priorities.
 
 ---
 
@@ -550,24 +492,22 @@ Your work is appreciated and makes the community better.
 
 - **Issues/Bugs**: GitHub Issues
 - **Feature Requests**: GitHub Discussions
-- **Community**: Iris Shaders Discord, Shader Devs community
-- **Documentation Questions**: See inline shader comments or TESTING_PHASE_29.md
+- **Community**: [Echelon Nexus Discord](https://discord.gg/4Y8xGDrN)
+- **Documentation Questions**: See inline shader comments or PHASE_*.md files
 
 ---
 
 ## 🙏 Final Thoughts
 
-Echelon Nexus represents a complete vision: a shader pack and texture pack designed together from the ground up to achieve genuine photorealism within Minecraft. This is not a shader in isolation.it's a complete visual system where every element (lighting physics, material encoding, texture detail) works in concert.
+Echelon Nexus is built on a core principle: a complete visual system where shader and texture pack work together to achieve genuine photorealism. Every element—from lighting physics to material encoding—integrates into a cohesive whole that respects optical accuracy.
 
-The shader community is generous, collaborative, and constantly pushing the boundaries of what's possible within OpenGL 4.5. We're all standing on the shoulders of giants.from the original Sonic Ether and CaptainTails to the modern innovators pushing Iris to its limits.
+The shader community's collaborative spirit continuously pushes what's possible. Echelon Nexus builds on that foundation while offering a distinct choice: photorealistic rendering backed by optical physics and designed with complementary texture assets.
 
-**The journey from here**: If Echelon Nexus' vision of photorealism paired with complementary texture assets resonates with what you want to experience, you'll find a complete, well-documented system ready to deliver it. And if another shader feels like a better fit for your specific needs.absolutely use that instead. The beauty of the community is choice, and I respect whatever you choose.
+If this vision resonates with your needs, you'll find a production-ready, well-documented system. If another shader better suits your priorities, that's equally valid. The strength of the community is having quality choices.
 
-There are no wrong choices here; only different explorations of what Minecraft can become with the right tools. Echelon Nexus is built for those seeking photorealism without compromise.both in shader quality and texture artistry.
-
-**Thank you for visiting. Welcome to Echelon Nexus.** ✨
+**Thank you for exploring Echelon Nexus.** ✨
 
 ---
 
 **Version**: 2.0.0 | **Last Updated**: March 2026 | **Status**: ✅ Production Ready
-**Maintainer**: jjnorris | **Community**: [Iris Shaders Discord](https://discord.gg/jXnbSurUeJ)
+**Maintainer**: jjnorris | **Community**: [Echelon Nexus Discord](https://discord.gg/4Y8xGDrN)
