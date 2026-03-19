@@ -1,0 +1,368 @@
+================================================================================
+ECHELON NEXUS SHADER PACK - COMPLETE HIDDEN OPTIONS INVENTORY
+================================================================================
+
+Total Options: 238
+Visible on UI: 24 (10%)
+HIDDEN Options: 214 (90%)
+
+================================================================================
+RENDERING/PERFORMANCE: 13 options (1 visible, 12 HIDDEN)
+================================================================================
+
+[VISIBLE] SHADOW_QUALITY = 0 1 2
+
+[HIDDEN] SHADOW_ALGORITHM = 0 1 2
+[HIDDEN] SHADOW_DISTANCE = 128
+[HIDDEN] SHADOW_FILTER_SIZE = 1.0
+[HIDDEN] SHADOW_SOFTNESS = 1.0
+[HIDDEN] SHADOW_BIAS = 0.001
+[HIDDEN] PENUMBRA_SCALE = 1.0
+[HIDDEN] LIFT_SHADOWS = 0.0
+[HIDDEN] BLUE_NOISE_DITHER = true
+[HIDDEN] PARALLAX_SELF_SHADOW = false
+[HIDDEN] CLOUD_SELF_SHADOW = false
+[HIDDEN] DITHERING_ENABLED = false
+[HIDDEN] PERCEPTUAL_DITHERING = true
+
+================================================================================
+MATERIALS/PBR: 24 options (2 visible, 22 HIDDEN)
+================================================================================
+
+[VISIBLE] PBR_MODE = 0 1
+[VISIBLE] PARALLAX_ON = true
+
+[HIDDEN] DIFFRACTION_ON = false
+[HIDDEN] INTERFERENCE_ON = true
+[HIDDEN] IRIDESCENCE_ON = true
+[HIDDEN] LABPBR_ON = true
+[HIDDEN] OLDPBR_ON = false
+[HIDDEN] SPECTRAL_BLOOM_ON = true
+[HIDDEN] EFFECT_SPECTRAL_BLOOM = false
+[HIDDEN] MATERIAL_INTERFERENCE = false
+[HIDDEN] MATERIAL_IRIDESCENCE = false
+[HIDDEN] MATERIAL_DIFFRACTION = false
+[HIDDEN] MATERIAL_CLEARCOAT = false
+[HIDDEN] MATERIAL_CHROMATIC = false
+[HIDDEN] IBL_PARALLAX_CORRECTION = false
+[HIDDEN] MATERIAL_TYPE = 0 1 2 3 4
+[HIDDEN] SPECTRAL_SAMPLES = 4 8 16
+[HIDDEN] PARALLAX_QUALITY = 1.0
+[HIDDEN] INTERFERENCE_STRENGTH = 0.5
+[HIDDEN] MATERIAL_THICKNESS = 200.0
+[HIDDEN] MATERIAL_IOR = 1.45
+[HIDDEN] MATERIAL_ABBE = 40.0
+[HIDDEN] IBL_ROUGHNESS_SCALE = 1.0
+[HIDDEN] BLOOM_SPECTRAL_SHIFT = 0.5
+
+================================================================================
+LIGHTING: 46 options (2 visible, 44 HIDDEN)
+================================================================================
+
+[VISIBLE] INDIRECT_ON = false
+[VISIBLE] IBL_ON = false
+
+[HIDDEN] IBL_ENABLED = true
+[HIDDEN] GI_PATH_INTEGRAL = false
+[HIDDEN] GI_IRRADIANCE_PROBES = false
+[HIDDEN] GI_LIGHT_PROPAGATION = false
+[HIDDEN] GI_ENHANCED_AO = false
+[HIDDEN] GI_SCREEN_SPACE_BOUNCE = false
+[HIDDEN] REFLECTION_PROBES_ON = false
+[HIDDEN] SSGI_ENABLED = false
+[HIDDEN] SSGI_DENOISE_ENABLED = true
+[HIDDEN] IBL_USE_SH = true
+[HIDDEN] PATH_CACHING = true
+[HIDDEN] TORCH_FLICKER = true
+[HIDDEN] COMPUTE_PATH_ON = false
+[HIDDEN] SSBO_PATH_ON = false
+[HIDDEN] INDIRECT_SAMPLES = 4 8 16
+[HIDDEN] INDIRECT_BOUNCES = 1 2 3
+[HIDDEN] GI_SAMPLE_COUNT = 8 16 32
+[HIDDEN] GI_SYSTEM_TYPE = 0 1 2 3 4
+[HIDDEN] IBL_PROBE_COUNT = 1 4 9
+[HIDDEN] SSGI_METHOD = 0 1 2
+[HIDDEN] SSGI_RAY_STEPS = 16 32 64
+[HIDDEN] SSGI_REFINEMENT_STEPS = 2 4 8
+[HIDDEN] IBL_SH_BANDS = 9 16
+[HIDDEN] SSGI_HBAO_SAMPLES = 8 16
+[HIDDEN] INDIRECT_QUALITY = 0.5
+[HIDDEN] GI_INTENSITY = 0.5
+[HIDDEN] IBL_INTENSITY = 1.0
+[HIDDEN] IBL_HDRI_INTENSITY = 1.0
+[HIDDEN] IBL_SPECULAR_INTENSITY = 1.0
+[HIDDEN] IBL_DIFFUSE_INTENSITY = 1.0
+[HIDDEN] IBL_MAX_MIP_LEVEL = 8.0
+[HIDDEN] PROBE_SPACING = 4.0
+[HIDDEN] SSGI_INTENSITY = 1.0
+[HIDDEN] SSGI_MAX_DISTANCE = 10.0
+[HIDDEN] SSGI_STRIDE = 0.1
+[HIDDEN] SSGI_CONE_ANGLE = 0.05
+[HIDDEN] SSGI_HBAO_RADIUS = 10.0
+[HIDDEN] SSGI_TEMPORAL_BLEND = 0.1
+[HIDDEN] SSGI_DEPTH_THRESHOLD = 0.01
+[HIDDEN] SSGI_BILATERAL_SIGMA_S = 1.0
+[HIDDEN] SSGI_BILATERAL_SIGMA_D = 0.02
+[HIDDEN] SSGI_BILATERAL_RADIUS = 2
+[HIDDEN] AO_INTENSITY = 1.0
+[HIDDEN] AO_COLOR_BLEED = 0.3
+[HIDDEN] TORCH_FLICKER_SPEED = 1.0
+[HIDDEN] MIS_ENABLED = true
+[HIDDEN] MIS_POWER = 2.0
+[HIDDEN] STRATIFIED_SAMPLES = 4
+
+================================================================================
+ATMOSPHERE/SKY/CLOUDS/FOG: 26 options (2 visible, 24 HIDDEN)
+================================================================================
+
+[VISIBLE] CLOUD_QUALITY = 0 1 2
+[VISIBLE] FOG_QUALITY = 0 1 2
+
+[HIDDEN] ATMOSPHERE_ENABLED = true
+[HIDDEN] VOLUMETRIC_FOG_ON = true
+[HIDDEN] CLOUDS_ON = true
+[HIDDEN] CLOUD_TEMPORAL_STABILITY = true
+[HIDDEN] SKY_RENDER_ENABLED = true
+[HIDDEN] VOLUMETRIC_FOG_ENABLED = false
+[HIDDEN] UNDERWATER_SCATTERING = true
+[HIDDEN] CLOUD_SCATTERING_ORDER = 1 2 3
+[HIDDEN] ATMOSPHERE_SKY_COLOR = 0.5 0.7 1.0
+[HIDDEN] SKY_QUALITY = 0 1 2
+[HIDDEN] ATMOSPHERE_TURBIDITY = 2.0
+[HIDDEN] ATMOSPHERE_FOG_DENSITY = 0.1
+[HIDDEN] ATMOSPHERE_FOG_ABSORPTION = 0.1
+[HIDDEN] CLOUD_RAYMARCH_STEPS = 16
+[HIDDEN] CLOUD_NOISE_DETAIL = 2
+[HIDDEN] VOLUMETRIC_SAMPLES = 16
+[HIDDEN] AERIAL_FOG_DISTANCE = 100.0
+[HIDDEN] AERIAL_PERSPECTIVE_DISTANCE = 256
+[HIDDEN] WEATHER_FOG_DENSITY = 1.0
+[HIDDEN] ALTITUDE_SCALE = 8500.0
+[HIDDEN] SKY_SUN_INTENSITY = 1.0
+[HIDDEN] RAYLEIGH_COEFFICIENT = 1.0
+[HIDDEN] MIE_COEFFICIENT = 0.5
+[HIDDEN] AEROSOL_DENSITY = 1.0
+[HIDDEN] HAZE_AMOUNT = 0.5
+[HIDDEN] GODRAY_QUALITY = 0.5
+
+================================================================================
+WATER: 28 options (3 visible, 25 HIDDEN)
+================================================================================
+
+[VISIBLE] WATER_QUALITY = 0 1 2
+[VISIBLE] CAUSTICS_ON = true
+[VISIBLE] WETNESS_ON = true
+
+[HIDDEN] WATER_GERSTNER_WAVES = false
+[HIDDEN] WATER_FOAM = false
+[HIDDEN] WATER_SHORELINE = false
+[HIDDEN] WATER_PROPAGATION = false
+[HIDDEN] WATER_UNDERWATER = false
+[HIDDEN] EFFECT_CAUSTICS = false
+[HIDDEN] FOAM_AT_SHORES = true
+[HIDDEN] RAIN_PUDDLES = true
+[HIDDEN] WATER_SYSTEM_TYPE = 0 1 2 3 4
+[HIDDEN] WATER_TYPE = 0 1 2
+[HIDDEN] WAVE_COUNT = 1 2 3 4
+[HIDDEN] WATER_WAVE_AMPLITUDE = 0.5
+[HIDDEN] WATER_WAVE_FREQUENCY = 1.0
+[HIDDEN] CAUSTICS_SPEED = 1.0
+[HIDDEN] CAUSTICS_SCALE = 1.0
+[HIDDEN] CAUSTICS_DEPTH = 1.0
+[HIDDEN] WATER_FOAM_INTENSITY = 0.7
+[HIDDEN] WATER_REFRACTION_STRENGTH = 1.0
+[HIDDEN] FOAM_INTENSITY = 0.5
+[HIDDEN] SHORELINE_DISTANCE = 50.0
+[HIDDEN] UNDERWATER_DEPTH = 5.0
+[HIDDEN] WAVE_AMPLITUDE = 0.5
+[HIDDEN] WAVE_WAVELENGTH = 10.0
+[HIDDEN] WAVE_SPEED = 2.0
+[HIDDEN] WETNESS_RESPONSE = 1.0
+
+================================================================================
+POST-PROCESSING/TONEMAP/EFFECTS: 46 options (6 visible, 40 HIDDEN)
+================================================================================
+
+[VISIBLE] BLOOM_ON = true
+[VISIBLE] SSR_ON = false
+[VISIBLE] TAA_ON = true
+[VISIBLE] TONEMAP_OPERATOR = 0 1 2
+[VISIBLE] COLOR_GRADE_PRESET = 0 1 2 3
+
+[HIDDEN] AIRY_DISK_ON = false
+[HIDDEN] LENS_FLARE_ON = false
+[HIDDEN] ADAPTIVE_EXPOSURE = false
+[HIDDEN] DOF_ENABLED = false
+[HIDDEN] BLOOM_ENABLED = false
+[HIDDEN] BLOOM_SUBPHASES_ON = false
+[HIDDEN] BLOOM_PHASE14A = false
+[HIDDEN] BLOOM_PHASE14D = false
+[HIDDEN] BLOOM_PHASE14E = false
+[HIDDEN] EFFECT_AIRY_DISK = false
+[HIDDEN] EFFECT_LENS_FLARES = false
+[HIDDEN] SSR_HISTORY_CLAMPING = true
+[HIDDEN] BLOOM_QUALITY = 0 1 2
+[HIDDEN] SSR_QUALITY = 1 2 3
+[HIDDEN] TAA_QUALITY = 0 1 2
+[HIDDEN] TAA_FILTER_TYPE = 0 1 2
+[HIDDEN] BLOOM_STRENGTH = 0.5
+[HIDDEN] BLOOM_THRESHOLD = 0.8
+[HIDDEN] BLOOM_SOFTKNEE = 0.1
+[HIDDEN] BLOOM_INTENSITY = 1.0
+[HIDDEN] TONE_MAPPING_TYPE = 2
+[HIDDEN] TONE_MAPPING_EXPOSURE = 1.0
+[HIDDEN] TONEMAP_EXPOSURE = 1.0
+[HIDDEN] SATURATION_FACTOR = 1.0
+[HIDDEN] CONTRAST_FACTOR = 0.5
+[HIDDEN] LIFT_SHADOWS = 0.0
+[HIDDEN] GAMMA_MIDTONES = 1.0
+[HIDDEN] GAIN_HIGHLIGHTS = 1.0
+[HIDDEN] COLOR_GRADING_ENABLED = false
+[HIDDEN] COLOR_GRADE_STRENGTH = 0.8
+[HIDDEN] VIGNETTE_AMOUNT = 0.0
+[HIDDEN] DITHERING_ENABLED = false
+[HIDDEN] OUTPUT_GAMMA = 2.2
+[HIDDEN] SHARPEN_AMOUNT = 0.2
+[HIDDEN] TAA_JITTER_SCALE = 1.0
+[HIDDEN] TAA_SAMPLE_WEIGHT = 0.7
+[HIDDEN] TAA_SHARPEN = 0.5
+[HIDDEN] TAA_CLAMP_STRENGTH = 1.0
+[HIDDEN] TAA_ADAPTIVITY = 1.0
+[HIDDEN] SSR_STEP_COUNT = 32
+[HIDDEN] CHROMATIC_ABERRATION = 0.0
+[HIDDEN] LENS_DISTORTION = 0.0
+[HIDDEN] FILM_GRAIN = 0.0
+[HIDDEN] AIRY_APERTURE_SIZE = 1.0
+[HIDDEN] FLARE_INTENSITY = 0.5
+
+================================================================================
+ADVANCED/DEBUG: 12 options (0 visible, 12 HIDDEN)
+================================================================================
+
+[HIDDEN] WIND_ANIMATION = true
+[HIDDEN] TEXTURE_SYNTHESIS = false
+[HIDDEN] LOD_SYNTHESIS = false
+[HIDDEN] DETAIL_ENHANCEMENT = false
+[HIDDEN] BIT_ALLOCATION = true
+[HIDDEN] PERCEPTUAL_DITHERING = true
+[HIDDEN] DEBUG_VIEW_MODE = false
+[HIDDEN] DEBUG_SHOW_BUFFERS = false
+[HIDDEN] ALLOW_CONCURRENT_COMPUTE = false
+[HIDDEN] DEBUG_VIEW = 0 1 2 3 4 5 6 7 8
+[HIDDEN] TEXTURE_COMPRESSION = 0 1 2
+[HIDDEN] COMPRESSION_QUALITY = 0.8
+[HIDDEN] SYNTHESIS_SPEED = 0.5
+[HIDDEN] WIND_STRENGTH = 0.5
+
+================================================================================
+OTHER/RAY TRACING/SSS: 37 options (1 visible, 36 HIDDEN)
+================================================================================
+
+[VISIBLE] SSS_ON = false
+
+[HIDDEN] DIFFRACTION_ON = false
+[HIDDEN] INTERFERENCE_ON = true
+[HIDDEN] RAYTRACING_ENABLED = false
+[HIDDEN] RAYTRACING_HYBRID_MODE = true
+[HIDDEN] RAYTRACING_OPTICAL_FLOW = true
+[HIDDEN] RAYTRACING_ADAPTIVE_RAYS = true
+[HIDDEN] RAYTRACING_RUSSIAN_ROULETTE = true
+[HIDDEN] SKIN_SSS = false
+[HIDDEN] FOLIAGE_TRANSMISSION = true
+[HIDDEN] EMISSIVE_RESPONSE = true
+[HIDDEN] EFFECT_GOD_RAYS = false
+[HIDDEN] RAYTRACING_TYPE = 0 1 2
+[HIDDEN] RAYTRACING_MAX_BOUNCES = 1 2 3 4
+[HIDDEN] RAYTRACING_SAMPLES_PER_PIXEL = 1 2 4
+[HIDDEN] GOD_RAY_SAMPLES = 8 16 32
+[HIDDEN] LAYER_COUNT = 1 2 3
+[HIDDEN] LPV_ITERATIONS = 4 8 16
+[HIDDEN] OPTICAL_EFFECT_TYPE = 0 1 2 3 4
+[HIDDEN] SAMPLING_MODE = 0 1 2 3 4
+[HIDDEN] SH_BANDS = 1 2 3
+[HIDDEN] SSS_STRENGTH = 1.0
+[HIDDEN] RAYTRACING_SPECULAR_INTENSITY = 1.0
+[HIDDEN] RAYTRACING_DIFFUSE_INTENSITY = 1.0
+[HIDDEN] RAYTRACING_TEMPORAL_BLEND = 0.2
+[HIDDEN] RAYTRACING_DEPTH_THRESHOLD = 0.05
+[HIDDEN] RAYTRACING_OPTICAL_SEARCH = 4
+[HIDDEN] GOD_RAY_DENSITY = 0.5
+[HIDDEN] LPV_GRID_SPACING = 1.0
+
+================================================================================
+SUMMARY TABLE
+================================================================================
+
+Category                         | Total | Visible | Hidden | % Hidden
+---------------------------------+-------+---------+--------+---------
+Rendering/Performance            |  13   |    1    |   12   |  92.3%
+Materials/PBR                    |  24   |    2    |   22   |  91.7%
+Lighting                         |  46   |    2    |   44   |  95.7%
+Atmosphere/Sky/Clouds/Fog        |  26   |    2    |   24   |  92.3%
+Water                            |  28   |    3    |   25   |  89.3%
+Post-Processing/Tonemap/Effects  |  46   |    6    |   40   |  87.0%
+Advanced/Debug                   |  12   |    0    |   12   | 100.0%
+Other/Ray Tracing/SSS            |  37   |    1    |   36   |  97.3%
+---------------------------------+-------+---------+--------+---------
+TOTAL                            | 238   |   24    |  214   |  90.0%
+
+================================================================================
+TOP 5 MOST HIDDEN CATEGORIES (by % hidden)
+================================================================================
+
+1. Other/Ray Tracing/SSS        - 97.3% (36/37 options hidden)
+2. Lighting                      - 95.7% (44/46 options hidden)
+3. Rendering/Performance         - 92.3% (12/13 options hidden)
+4. Atmosphere/Sky/Clouds        - 92.3% (24/26 options hidden)
+5. Materials/PBR                - 91.7% (22/24 options hidden)
+
+================================================================================
+KEY INSIGHTS
+================================================================================
+
+1. ADVANCED SYSTEMS ARE COMPLETELY INACCESSIBLE
+   - Ray Tracing: 36/37 options hidden (97.3%)
+   - Screen-space GI: 30+ options hidden
+   - Advanced sampling: 9/9 options hidden
+   
+2. FINE-TUNING CONTROLS ARE MISSING
+   - Shadow algorithms: 6 hidden options (can't choose ESM vs VSM)
+   - TAA options: 7 hidden (can't access filter types)
+   - Bloom variants: 7 hidden (can't enable sub-phases)
+   - Water physics: 18 hidden (can't tune Gerstner waves)
+   
+3. QUALITY PRESETS OVERRIDE HIDDEN OPTIONS
+   - Each profile automatically sets 20-50 hidden options
+   - Users cannot see or adjust what profiles change
+   - Manual editing required to deviate from profiles
+   
+4. CRITICAL MISSING UI PATTERNS
+   - Advanced/Debug section: 0/12 options shown (100% hidden)
+   - Lighting fine-tuning: 44/46 hidden
+   - Water physics: 25/28 hidden
+   - No search functionality
+   - No tooltips in UI (only in config comments)
+
+================================================================================
+RECOMMENDATION: BUILD EXPANDED UI SCREENS
+================================================================================
+
+Proposed new screens to expose hidden options:
+
+1. Shadows (13 options)
+2. Reflections & Probes (20+ options)  
+3. Global Illumination (30+ options)
+4. Material Properties (24 options)
+5. Water Physics (28 options)
+6. Sky & Atmosphere (26 options)
+7. Advanced TAA (8 options)
+8. Bloom & Glare (8 options)
+9. Ray Tracing (15+ options)
+10. Color & Grading (12+ options)
+11. Advanced Sampling (9 options)
+12. Volumetric Effects (5+ options)
+13. Debug & Visualization (12 options)
+
+This would expose ~200/214 hidden options to users.
+
+================================================================================
