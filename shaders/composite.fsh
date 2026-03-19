@@ -36,6 +36,7 @@
 #include "lib/screen_space_gi.glsl"
 #include "lib/realtime_ray_tracing.glsl"
 #include "lib/atmospheric_scattering.glsl"
+#include "lib/tone_mapping.glsl"
 #include "lib/temporal_anti_aliasing.glsl"
 #include "lib/bloom_and_spectral.glsl"
 #include "lib/bloom_subphases.glsl"
