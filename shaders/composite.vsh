@@ -1,11 +1,4 @@
-// ===================================================================
-// Echelon Nexus - Composite Post-Processing Vertex Shader
-// ===================================================================
-
 #version 330 compatibility
-
-#include "lib/constants.glsl"
-#include "lib/functions.glsl"
 
 out vec2 vTexCoord;
 
