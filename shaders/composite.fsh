@@ -94,8 +94,9 @@ void main() {
     // ║ and improves cache locality.                                       ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    // TEST: Output solid color to verify shader is running
-    colortex0_out = vec4(1.0, 0.0, 0.0, 1.0); // Red
+    // DEBUG: Output albedo from colortex0 (should have data now if alphaTest was the issue)
+    vec3 albedo = texture(colortex0, vTexCoord).rgb;
+    colortex0_out = vec4(albedo, 1.0);
     return;
 
     // Single read of lit scene
