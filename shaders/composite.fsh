@@ -94,11 +94,17 @@ void main() {
     // ║ and improves cache locality.                                       ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    // DEBUG: Output raw albedo from deferred to see if gbuffers have data
-    vec3 rawAlbedo = texture(colortex0, vTexCoord).rgb;
+    // DEBUG: Output gbuffer2 (normals + depth) to see if terrain is being rendered
+    vec4 gbuffer2 = texture(colortex2, vTexCoord);
 
-    // Temporarily output raw albedo to see what deferred is producing
-    colortex0_out = vec4(rawAlbedo, 1.0);
+    // Visualize depth (R channel should show distance)
+    float depthViz = gbuffer2.b * 5.0; // Scale for visibility
+
+    // Visualize normals (encode the normal visualization)
+    vec3 normalViz = gbuffer2.rg; // Oct-wrapped normal XY
+
+    // Output depth visualization
+    colortex0_out = vec4(vec3(depthViz), 1.0);
     return;
 
     // Single read of lit scene
