@@ -97,11 +97,8 @@ void main() {
     // DEBUG: Output gbuffer2 (normals + depth) to see if terrain is being rendered
     vec4 debugGBuffer2 = texture(colortex2, vTexCoord);
 
-    // Visualize depth (R channel should show distance)
-    float depthViz = debugGBuffer2.b * 5.0; // Scale for visibility
-
-    // Output depth visualization
-    colortex0_out = vec4(vec3(depthViz), 1.0);
+    // Output raw depth (should be 0-1, brighter = further away)
+    colortex0_out = vec4(vec3(debugGBuffer2.b), 1.0);
     return;
 
     // Single read of lit scene
