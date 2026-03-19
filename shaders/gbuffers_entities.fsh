@@ -1,5 +1,5 @@
 #version 330 compatibility
-/* RENDERTARGETS: 0 */
+
 
 uniform sampler2D tex;
 
