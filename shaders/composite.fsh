@@ -104,13 +104,13 @@ void main() {
     // ║   - Channel-specific adjustments
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    // Color grading: Saturation boost for vibrancy
+    // Color grading: Saturation adjustment
     // Extract luminance (perceived brightness)
     vec3 luminance = vec3(0.299, 0.587, 0.114);
     float gray = dot(color, luminance);
 
     // Interpolate between desaturated and saturated version
-    float saturation = 1.1;  // 1.0 = no change, >1.0 = more vibrant
+    float saturation = 1.0;  // 1.0 = no change, >1.0 = more vibrant, <1.0 = less vibrant
     color = mix(vec3(gray), color, saturation);
 
     // Optional brightness adjustment

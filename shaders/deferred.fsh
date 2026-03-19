@@ -207,7 +207,7 @@ void main() {
         smoothstep(-0.2, 0.3, sunHeight)
     );
 
-    sunlight.radiance = sunColor * 0.8;  // Slightly reduced intensity
+    sunlight.radiance = sunColor * 1.0;  // Standard intensity
 
     // ╔─────────────────────────────────────────────────────────────────────╗
     // ║ Compute Shadow Factor (PHASE 6-9 COMPLETE)                          ║
@@ -276,7 +276,7 @@ void main() {
     float skyInfluence = mix(0.3, 1.0, normal.y * 0.5 + 0.5);
 
     // Combine ambient components
-    vec3 ambientLight = albedo * ambientSkyColor * ambientBrightness * skyInfluence * 0.5;
+    vec3 ambientLight = albedo * ambientSkyColor * ambientBrightness * skyInfluence * 0.3;
 
     // Add minimum ambient to prevent complete darkness in shadows
     vec3 minAmbient = albedo * 0.05;  // 5% minimum brightness
@@ -369,6 +369,9 @@ void main() {
 
     // Safety clamp (prevents NaN propagation)
     finalColor = clamp(finalColor, 0.0, 100.0);
+
+    // DEBUG: Uncomment to see raw albedo
+    // colortex0_out = vec4(albedo, gbuffer0.a);
 
     // Output
     colortex0_out = vec4(finalColor, gbuffer0.a);
