@@ -7,6 +7,12 @@
 
 #version 330 compatibility
 
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ UNIFORM INPUTS                                                            ║
+// ╚───────────────────────────────────────────────────────────────────────────╝
+
+uniform sampler2D tex;  // Block texture for alpha masking
+
 #include "lib/constants.glsl"
 #include "lib/functions.glsl"
 

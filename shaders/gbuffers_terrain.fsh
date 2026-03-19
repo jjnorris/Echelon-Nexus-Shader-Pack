@@ -9,6 +9,14 @@
 
 #version 330 compatibility
 
+// ╔───────────────────────────────────────────────────────────────────────────╗
+// ║ UNIFORM INPUTS (for material_sampling.glsl functions)                    ║
+// ╚───────────────────────────────────────────────────────────────────────────╝
+
+uniform sampler2D tex;           // Block texture (for sampleAlbedo, sampleAlpha)
+uniform sampler2D specularTex;   // Specular/roughness texture (for future material sampling)
+uniform sampler2D lightmap;      // Lightmap texture (for sampleBlockLight, sampleSkyLight)
+
 #include "lib/constants.glsl"
 #include "lib/functions.glsl"
 #include "lib/pbr_material.glsl"

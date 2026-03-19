@@ -25,6 +25,7 @@ uniform sampler2D colortex0;  // G-buffer 0: Albedo (RGB) + Alpha
 uniform sampler2D colortex1;  // G-buffer 1: Material (roughness, metallic, emissive)
 uniform sampler2D colortex2;  // G-buffer 2: Normal (oct-encoded) + Depth
 uniform sampler2D shadowtex0; // Shadow depth map
+uniform sampler2D depthtex0;  // Depth texture (needed by viewport.glsl functions)
 uniform sampler2D noisetex;   // Blue noise for dithering
 
 // Built-in uniforms provided by Iris/Minecraft
