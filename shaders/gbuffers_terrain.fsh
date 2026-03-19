@@ -1,104 +1,51 @@
 // ===================================================================
-// Echelon Nexus - Terrain Fragment Shader (Solid & Cutout)
-// ===================================================================
-// Purpose: Capture terrain G-buffers (color, material, normals)
-// Output:  colortex4 (albedo)
-//          colortex5 (material: roughness, metallic, emissive)
-//          colortex6 (normals + depth)
+// MINIMAL TERRAIN G-BUFFER (Clean Foundation)
 // ===================================================================
 
 #version 330 compatibility
-
 /* RENDERTARGETS: 4,5,6 */
 
-// ╔───────────────────────────────────────────────────────────────────────────╗
-// ║ UNIFORM INPUTS (for material_sampling.glsl functions)                    ║
-// ╚───────────────────────────────────────────────────────────────────────────╝
-
-uniform sampler2D tex;           // Block texture (for sampleAlbedo, sampleAlpha)
-uniform sampler2D specularTex;   // Specular/roughness texture (for future material sampling)
-uniform sampler2D lightmap;      // Lightmap texture (for sampleBlockLight, sampleSkyLight)
+uniform sampler2D tex;
+uniform sampler2D specularTex;
+uniform sampler2D lightmap;
 
 #include "lib/constants.glsl"
 #include "lib/functions.glsl"
-#include "lib/pbr_material.glsl"
-#include "lib/material_sampling.glsl"
-
-// ===================================================================
-// FRAGMENT INPUT
-// ===================================================================
 
 in vec3 vPosition;
 in vec3 vNormal;
 in vec2 vTexCoord;
 in vec2 vTexCoordLight;
 in vec4 vColor;
-in float vDepth;
 
-// ===================================================================
-// FRAGMENT OUTPUT
-// ===================================================================
-
-// G-buffer outputs
-layout(location = 0) out vec4 colortex0;  // Lit color
-layout(location = 1) out vec4 colortex1;  // Material params
-layout(location = 2) out vec4 colortex2;  // Normals + depth
-
-// ===================================================================
-// MAIN FRAGMENT SHADER
-// ===================================================================
+layout(location = 0) out vec4 colortex0;  // Albedo
+layout(location = 1) out vec4 colortex1;  // Material
+layout(location = 2) out vec4 colortex2;  // Normal + depth
 
 void main() {
-    // Step 1: Alpha test
-    if (!alphaTest(vTexCoord, 0.5)) {
-        discard;
-    }
+    // Alpha test
+    float alpha = texture(tex, vTexCoord).a;
+    if (alpha < 0.5) discard;
 
-    // Step 2: Sample and decode material
-    // Use LabPBR format by default (pbrMode=0)
-    // Disable parallax for terrain (Phase 7+)
-    Material material = sampleMaterialComplete(
-        vTexCoord,
-        normalize(vNormal),
-        vec3(0.0),  // viewDir not available in gbuffers; compute in deferred
-        0,          // pbrMode=0 (LabPBR)
-        false       // enableParallax=false for terrain
-    );
+    // Simple albedo (just texture * vertex color)
+    vec3 albedo = texture(tex, vTexCoord).rgb * vColor.rgb;
 
-    // Step 3: Blend with vertex color (for grass, leaves, etc.)
-    material = blendWithVertexColor(material, vColor);
+    // Normalize normal
+    vec3 normal = normalize(vNormal);
 
-    // Step 4: Store in G-buffers
+    // Simple material defaults (no texture-based variation yet)
+    float roughness = 0.5;   // Default roughness
+    float metallic = 0.0;    // Terrain is never metallic
+    float emissive = 0.0;    // No emissive by default
 
-    // colortex0: Albedo (will be lit in deferred pass)
-    colortex0 = vec4(material.albedo, 1.0);
+    // Encode normal (octahedral)
+    vec2 encodedNormal = encodeUnitVector(normal);
 
-    // colortex1: Material properties
-    // R = roughness, G = metallic, B = emissive, A = reserved
-    colortex1 = vec4(
-        material.roughness,
-        material.metallic,
-        material.emissive,
-        1.0
-    );
+    // Normalize depth to [0, 1]
+    float depthNormalized = clamp(gl_FragCoord.z / FAR_PLANE, 0.0, 1.0);
 
-    // colortex2: Normal + depth
-    // Encode normal using oct-wrap
-    vec2 encodedNormal = encodeUnitVector(material.normal);
-
-    // Linearize depth (simplified; accurate linearization in Phase 4)
-    float depthNDC = gl_FragCoord.z;
-    float depthLinear = linearizeDepth(depthNDC, NEAR_PLANE, FAR_PLANE);
-    float depthNormalized = clamp(depthLinear / FAR_PLANE, 0.0, 1.0);
-
-    colortex2 = vec4(
-        encodedNormal.x,
-        encodedNormal.y,
-        depthNormalized,
-        1.0
-    );
+    // Output G-buffers
+    colortex0 = vec4(albedo, 1.0);
+    colortex1 = vec4(roughness, metallic, emissive, 1.0);
+    colortex2 = vec4(encodedNormal, depthNormalized, 1.0);
 }
-
-// ===================================================================
-// END OF TERRAIN FRAGMENT SHADER
-// ===================================================================

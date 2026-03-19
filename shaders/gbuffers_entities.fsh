@@ -1,66 +1,42 @@
 // ===================================================================
-// Echelon Nexus - Entities Fragment Shader
+// MINIMAL ENTITIES G-BUFFER (Clean Foundation)
 // ===================================================================
 
 #version 330 compatibility
-
 /* RENDERTARGETS: 4,5,6 */
 
-// ╔───────────────────────────────────────────────────────────────────────────╗
-// ║ UNIFORM INPUTS (for material_sampling.glsl functions)                    ║
-// ╚───────────────────────────────────────────────────────────────────────────╝
-
-uniform sampler2D tex;           // Entity texture (for sampleAlbedo, sampleAlpha)
-uniform sampler2D specularTex;   // Specular/roughness texture (for future material sampling)
-uniform sampler2D lightmap;      // Lightmap texture (for sampleBlockLight, sampleSkyLight)
+uniform sampler2D tex;
+uniform sampler2D specularTex;
+uniform sampler2D lightmap;
 
 #include "lib/constants.glsl"
 #include "lib/functions.glsl"
-#include "lib/pbr_material.glsl"
-#include "lib/material_sampling.glsl"
 
 in vec3 vPosition;
 in vec3 vNormal;
 in vec2 vTexCoord;
 in vec2 vTexCoordLight;
 in vec4 vColor;
-in float vDepth;
 
 layout(location = 0) out vec4 colortex0;
 layout(location = 1) out vec4 colortex1;
 layout(location = 2) out vec4 colortex2;
 
 void main() {
-    if (!alphaTest(vTexCoord, 0.5)) {
-        discard;
-    }
+    float alpha = texture(tex, vTexCoord).a;
+    if (alpha < 0.5) discard;
 
-    Material material = sampleMaterialComplete(
-        vTexCoord,
-        normalize(vNormal),
-        vec3(0.0),
-        0,      // LabPBR
-        false   // No parallax
-    );
+    vec3 albedo = texture(tex, vTexCoord).rgb * vColor.rgb;
+    vec3 normal = normalize(vNormal);
 
-    material = blendWithVertexColor(material, vColor);
+    float roughness = 0.7;
+    float metallic = 0.0;
+    float emissive = 0.0;
 
-    colortex0 = vec4(material.albedo, 1.0);
-
-    colortex1 = vec4(
-        material.roughness,
-        material.metallic,
-        material.emissive,
-        1.0
-    );
-
-    vec2 encodedNormal = encodeUnitVector(material.normal);
+    vec2 encodedNormal = encodeUnitVector(normal);
     float depthNormalized = clamp(gl_FragCoord.z / FAR_PLANE, 0.0, 1.0);
 
-    colortex2 = vec4(
-        encodedNormal.x,
-        encodedNormal.y,
-        depthNormalized,
-        1.0
-    );
+    colortex0 = vec4(albedo, 1.0);
+    colortex1 = vec4(roughness, metallic, emissive, 1.0);
+    colortex2 = vec4(encodedNormal, depthNormalized, 1.0);
 }
