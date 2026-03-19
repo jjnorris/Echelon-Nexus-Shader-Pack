@@ -139,7 +139,7 @@ void main() {
     // Sun light (main directional light)
     Light sunlight;
     sunlight.direction = normalize(vec3(0.5, 0.8, 0.2));  // TODO: Get from uniform in Phase 6
-    sunlight.radiance = vec3(1.2, 1.15, 1.0) * 1.2;      // Slightly warm daylight
+    sunlight.radiance = vec3(1.0, 0.95, 0.8) * 0.8;      // Slightly warm daylight (reduced intensity)
 
     // ╔─────────────────────────────────────────────────────────────────────╗
     // ║ Compute Shadow Factor (PHASE 6-9 COMPLETE)                          ║
@@ -186,14 +186,14 @@ void main() {
     // ║ Step 5: Ambient Lighting (PHASE 5, placeholder for Phase 20 IBL)   ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    vec3 ambientLight = albedo * 0.15;  // Simple flat ambient
+    vec3 ambientLight = albedo * 0.08;  // Simple flat ambient (reduced)
     // TODO Phase 20: Replace with spherical harmonics IBL
 
     // ╔─────────────────────────────────────────────────────────────────────╗
     // ║ Step 6: Emissive (PHASE 5)                                         ║
     // ╚─────────────────────────────────────────────────────────────────────╝
 
-    vec3 emissiveLight = albedo * emissive * 2.0;
+    vec3 emissiveLight = albedo * emissive * 0.5;  // Reduced from 2.0
 
     // ╔─────────────────────────────────────────────────────────────────────╗
     // ║ Step 7: Combine Lighting                                           ║
