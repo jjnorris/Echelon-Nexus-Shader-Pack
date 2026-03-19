@@ -31,6 +31,7 @@
 #include "lib/interference_materials.glsl"
 #include "lib/optical_effects.glsl"
 #include "lib/water_systems.glsl"
+#include "lib/indirect_lighting.glsl"
 #include "lib/temporal_anti_aliasing.glsl"
 #include "lib/bloom_and_spectral.glsl"
 #include "lib/bloom_subphases.glsl"
