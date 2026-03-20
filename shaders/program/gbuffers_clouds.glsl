@@ -1,260 +1,155 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+/////////////////////////////////////
+// Complementary Shaders by EminGT //
+/////////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-#if !defined CLOUDS && defined OVERWORLD
-	varying vec2 texCoord;
-
-	varying vec3 normal;
-	varying vec3 sunVec, upVec;
-
-	varying vec4 color;
-#endif
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-#if !defined CLOUDS && defined OVERWORLD
-	uniform int isEyeInWater;
+#if CLOUD_STYLE_DEFINE == 50
+// We use CLOUD_STYLE_DEFINE instead of CLOUD_STYLE in this file because Optifine can't use generated defines for pipeline stuff
+    in vec2 texCoord;
 
-	uniform float rainStrengthS;
-	uniform float screenBrightness; 
-	uniform float viewWidth, viewHeight;
-	uniform float far;
+    flat in vec3 upVec, sunVec;
 
-	uniform ivec2 eyeBrightnessSmooth;
-
-	uniform vec3 skyColor;
-	uniform vec3 cameraPosition;
-
-	uniform mat4 gbufferProjectionInverse;
-	uniform mat4 gbufferModelViewInverse;
-	uniform mat4 shadowProjection;
-	uniform mat4 shadowModelView;
-
-	uniform sampler2D texture;
-
-	#if AA > 1
-		uniform int frameCounter;
-	#endif
+    in vec4 glColor;
 #endif
+
+//Pipeline Constants//
 
 //Common Variables//
-#if !defined CLOUDS && defined OVERWORLD
-	float eBS = eyeBrightnessSmooth.y / 240.0;
-	float sunVisibility = clamp(dot( sunVec,upVec) + 0.0625, 0.0, 0.125) * 8.0;
-	float vsBrightness = clamp(screenBrightness, 0.0, 1.0);
+#if CLOUD_STYLE_DEFINE == 50
+    float SdotU = dot(sunVec, upVec);
+    float sunFactor = SdotU < 0.0 ? clamp(SdotU + 0.375, 0.0, 0.75) / 0.75 : clamp(SdotU + 0.03125, 0.0, 0.0625) / 0.0625;
+    float sunVisibility = clamp(SdotU + 0.0625, 0.0, 0.125) / 0.125;
+    float sunVisibility2 = sunVisibility * sunVisibility;
 #endif
 
-//Includes//
-#if !defined CLOUDS && defined OVERWORLD
-	#include "/lib/util/spaceConversion.glsl"
-	#include "/lib/color/lightColor.glsl"
-	#include "/lib/color/skyColor.glsl"
+//Common Functions//
 
-	#if AA == 2 || AA == 3
-		#include "/lib/util/jitter.glsl"
-	#endif
-	#if AA == 4
-		#include "/lib/util/jitter2.glsl"
-	#endif
+//Includes//
+#if CLOUD_STYLE_DEFINE == 50
+    #include "/lib/colors/skyColors.glsl"
+    #include "/lib/util/spaceConversion.glsl"
+
+    #if defined TAA && defined BORDER_FOG
+        #include "/lib/antialiasing/jitter.glsl"
+    #endif
+
+    #ifdef ATM_COLOR_MULTS
+        #include "/lib/colors/colorMultipliers.glsl"
+    #endif
+    #ifdef MOON_PHASE_INF_ATMOSPHERE
+        #include "/lib/colors/moonPhaseInfluence.glsl"
+    #endif
+
+    #ifdef COLOR_CODED_PROGRAMS
+        #include "/lib/misc/colorCodedPrograms.glsl"
+    #endif
 #endif
 
 //Program//
-void main(){
-    #if !defined CLOUDS && defined OVERWORLD
-		vec4 albedo = vec4(1.0, 1.0, 1.0, texture2D(texture, texCoord.xy).a);
-		vec3 cloudTex = texture2D(texture, texCoord.xy).rgb;
-		albedo.rgb = pow(albedo.rgb * cloudTex, vec3(2.2));
-		
-		float timeBrightnessS = 1.0 - timeBrightness;
-		timeBrightnessS = 1.0 - timeBrightnessS * timeBrightnessS;
-		if (rainStrengthS < 1.0) albedo.rgb *= lightCol * sky_ColorSqrt * (0.5 + 0.15 * timeBrightnessS);
-		float sunVisibility2 = sunVisibility * sunVisibility;
-		if (rainStrengthS > 0.0) {
-			vec3 rainColor = weatherCol*weatherCol * (0.002 + 0.03 * timeBrightnessS + 0.02 * sunVisibility2);
-			albedo.rgb = mix(albedo.rgb, rainColor * cloudTex, rainStrengthS);
-		}
-		if (albedo.a > 0.1) {
-			albedo.a = CLOUD_OPACITY;
-			albedo.a *= albedo.a;
-		}
+void main() {
+    #if CLOUD_STYLE_DEFINE != 50
+        discard;
+    #else
+        vec4 color = texture2D(tex, texCoord) * glColor;
 
-		vec3 screenPos = vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z);
-		#if AA > 1
-			vec3 viewPos = ScreenToView(vec3(TAAJitter(screenPos.xy, -0.5), screenPos.z));
-		#else
-			vec3 viewPos = ScreenToView(screenPos);
-		#endif
+        vec4 translucentMult = vec4(mix(vec3(0.666), color.rgb * (1.0 - pow2(pow2(color.a))), color.a), 1.0);
 
-		vec3 worldPos = ViewToWorld(viewPos);
+        #ifdef OVERWORLD
+            vec3 cloudLight = mix(vec3(0.8, 1.6, 1.5) * sqrt1(nightFactor), mix(dayDownSkyColor, dayMiddleSkyColor, 0.1), sunFactor);
+            color.rgb *= sqrt(cloudLight) * (1.2 + 0.4 * noonFactor * invRainFactor);
 
-		#ifdef FOG1
-			float lWorldPos = max(abs(worldPos.x), abs(worldPos.z));
-			float cloudDistance = 375.0;
-			cloudDistance = clamp((cloudDistance - lWorldPos) / cloudDistance, 0.0, 1.0);
-			if (cloudDistance < 0.00001) discard;
-			albedo.a *= min(cloudDistance * 3.0, 1.0);
-		#endif
+            #if CLOUD_R != 100 || CLOUD_G != 100 || CLOUD_B != 100
+                color.rgb *= vec3(CLOUD_R, CLOUD_G, CLOUD_B) * 0.01;
+            #endif
+            #ifdef ATM_COLOR_MULTS
+                color.rgb *= sqrt(GetAtmColorMult()); // C72380KD - Reduced atmColorMult impact on things
+            #endif
+            #ifdef MOON_PHASE_INF_ATMOSPHERE
+                color.rgb *= moonPhaseInfluence;
+            #endif
+        #endif
 
-		vec3 nViewPos = normalize(viewPos.xyz);
-		float NdotU = dot(nViewPos, upVec);
-		float cosS = dot(nViewPos, sunVec);
+        #ifdef BORDER_FOG
+            vec3 screenPos = vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z);
+            #ifdef TAA
+                vec3 viewPos = ScreenToView(vec3(TAAJitter(screenPos.xy, -0.5), screenPos.z));
+            #else
+                vec3 viewPos = ScreenToView(screenPos);
+            #endif
+            vec3 playerPos = ViewToPlayer(viewPos);
+            float xzMaxDistance = max(abs(playerPos.x), abs(playerPos.z));
 
-		float scattering = 0.5 * sunVisibility2 * pow(cosS * 0.5 * (2.0 * sunVisibility - 1.0) + 0.5, 6.0);
-		//scattering *= scattering;
-		albedo.rgb *= 1.0 + scattering * (1.0 - rainStrengthS * 0.8);
+            #if MC_VERSION < 12106
+                float cloudDistance = 375.0;
+            #else
+                float cloudDistance = 2000.0;
+            #endif
 
-		float meFactorP = min((1.0 - min(moonBrightness, 0.6) / 0.6) * 0.115, 0.075);
-		vec3 meColor = vec3(0.0);
-		if (cosS > 0.0) {
-			float meNdotU = 1.0 - abs(NdotU);
-			float meFactor = meFactorP * meNdotU * cosS * meNdotU * 12.0 * (1.0 - rainStrengthS);
-			meColor = mix(lightMorning, lightEvening, mefade);
-			meColor *= meColor;
-			meColor *= meColor;
-			meColor *= meFactor * meFactor;
-		}
-		albedo.rgb += meColor * 0.25;
+            cloudDistance = clamp((cloudDistance - xzMaxDistance) / cloudDistance, 0.0, 1.0);
+            color.a *= clamp01(cloudDistance * 3.0);
+        #endif
 
-		float height = worldPos.y + cameraPosition.y;
-		float cloudHeightFactor = 0.0;
-		bool doFancyClouds = false;
-		if (height < 134.0) {
-			cloudHeightFactor = clamp(height - 127.85, 0.0, 5.0) / 5.0;
-			doFancyClouds = true;
-		} else if (height < 199.0 && height > 190.0) {
-			cloudHeightFactor = clamp(height - 191.85, 0.0, 5.0) / 5.0;
-			doFancyClouds = true;
-		}
-		if (doFancyClouds) {
-			vec3 lightVec = sunVec * ((timeAngle < 0.5325 || timeAngle > 0.9675) ? 1.0 : -1.0);
-				
-			float shadowTime = abs(sunVisibility - 0.5) * 2.0;
-			shadowTime *= shadowTime;
-			lightVec *= shadowTime * shadowTime;
-			float NdotL = clamp(dot(normal, lightVec) * 1.01 - 0.01, 0.0, 1.0);
-			albedo.rgb *= 1.0 + NdotL * 0.5;
+        #ifdef COLOR_CODED_PROGRAMS
+            ColorCodeProgram(color, -1);
+        #endif
 
-			cloudHeightFactor = pow(cloudHeightFactor, 2.0 - NdotL);
-
-			cloudHeightFactor *= 1.0 + 3.0 * sqrt1(moonBrightness) * (1.0 - rainStrengthS);
-
-			float quarterNdotU = dot(normal, upVec);
-			if (quarterNdotU > 0.0) albedo.rgb *= 1.0 - 0.25 * quarterNdotU;
-			else albedo.rgb *= 1.0 + 0.15 * quarterNdotU;
-
-			albedo.rgb *= 0.5 + (0.25 + 0.75 * (1.0 - rainStrengthS) * sunVisibility2) * cloudHeightFactor;
-		} else {
-			float quarterNdotU = clamp(0.25 * dot(normal, upVec) + 0.75, 0.5, 1.0);
-			albedo.rgb *= quarterNdotU;
-		}
-
-		vec3 vlAlbedo = mix(vec3(1.0), albedo.rgb, sqrt1(albedo.a)) * (1.0 - pow(albedo.a, 64.0));
-	#else
-		discard;
-		vec4 albedo = vec4(1.0);
-		vec3 vlAlbedo = vec3(1.0);
-	#endif
-	
-	#ifdef GBUFFER_CODING
-		albedo.rgb = vec3(255.0, 255.0, 255.0) / 255.0;
-		albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 2.0;
-	#endif
-
-    /* DRAWBUFFERS:01 */
-    gl_FragData[0] = albedo;
-	gl_FragData[1] = vec4(vlAlbedo, 1.0);
+        /* DRAWBUFFERS:063 */
+        gl_FragData[0] = color;
+        gl_FragData[1] = vec4(0.0, 0.0, 0.0, 1.0);
+        gl_FragData[2] = vec4(1.0 - translucentMult.rgb, translucentMult.a);
+    #endif
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
 
-//Uniforms//
-#if !defined CLOUDS && defined OVERWORLD
-	#if AA == 2 || AA == 3
-		uniform int frameCounter;
+#if CLOUD_STYLE_DEFINE == 50
+    out vec2 texCoord;
 
-		uniform float viewWidth;
-		uniform float viewHeight;
-	#endif
-	#if AA == 4
-		uniform int frameCounter;
+    flat out vec3 upVec, sunVec;
 
-		uniform float viewWidth;
-		uniform float viewHeight;
-	#endif
-
-	uniform vec3 cameraPosition;
-
-	uniform mat4 gbufferModelView;
-	uniform mat4 gbufferModelViewInverse;
+    out vec4 glColor;
 #endif
+
+//Attributes//
 
 //Common Variables//
-#if !defined CLOUDS && defined OVERWORLD
-	#ifdef OVERWORLD
-		#ifdef OVERWORLD
-	float timeAngleM = timeAngle;
-#else
-	#if !defined SEVEN && !defined SEVEN_2
-		float timeAngleM = 0.25;
-	#else
-		float timeAngleM = 0.5;
-	#endif
-#endif
-	#else
-		float timeAngleM = 0.25;
-	#endif
-#endif
+
+//Common Functions//
 
 //Includes//
-#if !defined CLOUDS && defined OVERWORLD
-	#if AA == 2 || AA == 3
-		#include "/lib/util/jitter.glsl"
-	#endif
-	#if AA == 4
-		#include "/lib/util/jitter2.glsl"
-	#endif
+#if CLOUD_STYLE_DEFINE == 50
+    #ifdef TAA
+        #include "/lib/antialiasing/jitter.glsl"
+    #endif
 #endif
 
 //Program//
-void main(){
-	#if !defined CLOUDS && defined OVERWORLD
-		texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
+void main() {
+    #if CLOUD_STYLE_DEFINE != 50
+        gl_Position = vec4(-1.0);
+    #else
+        texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 
-		color = gl_Color;
+        glColor = gl_Color;
 
-		normal = normalize(gl_NormalMatrix * gl_Normal);
-		
-		const vec2 sunRotationData = vec2(cos(sunPathRotation * 0.01745329251994), -sin(sunPathRotation * 0.01745329251994));
-		float ang = fract(timeAngleM - 0.25);
-		ang = (ang + (cos(ang * 3.14159265358979) * -0.5 + 0.5 - ang) / 3.0) * 6.28318530717959;
-		sunVec = normalize((gbufferModelView * vec4(vec3(-sin(ang), cos(ang) * sunRotationData) * 2000.0, 1.0)).xyz);
+        upVec = normalize(gbufferModelView[1].xyz);
+        sunVec = GetSunVector();
 
-		upVec = normalize(gbufferModelView[1].xyz);
-			
-		vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
-		position.xz -= vec2(88.0);
-		float height = position.y + cameraPosition.y;
-		if (height > 193.0) position.y += 2.0;
-		gl_Position = gl_ProjectionMatrix * gbufferModelView * position;
+        vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
+        gl_Position = gl_ProjectionMatrix * gbufferModelView * position;
 
-		#if AA > 1
-			gl_Position.xy = TAAJitter(gl_Position.xy, gl_Position.w);
-		#endif
-	#else
-		gl_Position = vec4(0.0);
-		return;
-	#endif
-	
+        #ifdef TAA
+            gl_Position.xy = TAAJitter(gl_Position.xy, gl_Position.w);
+        #endif
+    #endif
 }
 
 #endif

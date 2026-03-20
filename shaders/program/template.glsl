@@ -1,18 +1,14 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+/////////////////////////////////////
+// Complementary Shaders by EminGT //
+/////////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-
-//Optifine Constants//
+//Pipeline Constants//
 
 //Common Variables//
 
@@ -22,15 +18,13 @@ Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
 
 //Program//
 void main() {
-    
+
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
-
-//Uniforms//
+#ifdef VERTEX_SHADER
 
 //Attributes//
 
@@ -42,7 +36,7 @@ void main() {
 
 //Program//
 void main() {
-    
+
 }
 
 #endif

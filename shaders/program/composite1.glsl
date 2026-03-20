@@ -1,258 +1,343 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+/////////////////////////////////////
+// Complementary Shaders by EminGT //
+/////////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-varying vec2 texCoord;
-
-varying vec3 sunVec, upVec;
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-uniform int isEyeInWater;
+noperspective in vec2 texCoord;
 
-uniform float blindFactor;
-uniform float rainStrengthS;
-uniform float screenBrightness; 
-uniform float viewWidth, viewHeight;
+flat in vec3 upVec, sunVec;
 
-uniform ivec2 eyeBrightnessSmooth;
-
-uniform vec3 skyColor;
-
-uniform mat4 gbufferProjectionInverse;
-
-uniform sampler2D colortex0;
-uniform sampler2D colortex1;
-
-#ifdef VL_CLOUDS
-	uniform sampler2D colortex5;
+#ifdef LIGHTSHAFTS_ACTIVE
+    flat in float vlFactor;
 #endif
 
-#if NIGHT_VISION > 1
-	uniform float nightVision;
-#endif
-
-#if MC_VERSION >= 11900
-	uniform float darknessFactor;
-#endif
-
-//Optifine Constants//
-#if !(LIGHT_SHAFT_QUALITY == 3)
-	const bool colortex1MipmapEnabled = true;
-#endif
-
-#ifdef VL_CLOUDS
-	const bool colortex5MipmapEnabled = true;
-#endif
+//Pipeline Constants//
 
 //Common Variables//
-float eBS = eyeBrightnessSmooth.y / 240.0;
-float sunVisibility = clamp(dot( sunVec,upVec) + 0.0625, 0.0, 0.125) * 8.0;
-float sunVisibilityLSM = clamp(dot( sunVec,upVec) + 0.125, 0.0, 0.25) * 4.0;
-float vsBrightness = clamp(screenBrightness, 0.0, 1.0);
-float rainStrengthSp2 = rainStrengthS * rainStrengthS;
-float lightShaftTime = pow(abs(sunVisibility - 0.5) * 2.0, 10.0);
-float worldBrightness = max(timeBrightness, moonBrightness);
+float SdotU = dot(sunVec, upVec);
+float sunFactor = SdotU < 0.0 ? clamp(SdotU + 0.375, 0.0, 0.75) / 0.75 : clamp(SdotU + 0.03125, 0.0, 0.0625) / 0.0625;
+float sunVisibility = clamp(SdotU + 0.0625, 0.0, 0.125) / 0.125;
+float sunVisibility2 = sunVisibility * sunVisibility;
+
+vec2 view = vec2(viewWidth, viewHeight);
+
+#ifdef OVERWORLD
+    vec3 lightVec = sunVec * ((timeAngle < 0.5325 || timeAngle > 0.9675) ? 1.0 : -1.0);
+#else
+    vec3 lightVec = sunVec;
+#endif
+
+#ifdef LIGHTSHAFTS_ACTIVE
+    float shadowTimeVar1 = abs(sunVisibility - 0.5) * 2.0;
+    float shadowTimeVar2 = shadowTimeVar1 * shadowTimeVar1;
+    float shadowTime = shadowTimeVar2 * shadowTimeVar2;
+    float vlTime = min(abs(SdotU) - 0.05, 0.15) / 0.15;
+#endif
 
 //Common Functions//
-float GetLuminance(vec3 color) {
-	return dot(color,vec3(0.299, 0.587, 0.114));
+float GetLinearDepth(float depth) {
+    return (2.0 * near) / (far + near - depth * (far - near));
 }
 
 //Includes//
-#include "/lib/color/dimensionColor.glsl"
+#include "/lib/atmospherics/fog/waterFog.glsl"
+#include "/lib/atmospherics/fog/caveFactor.glsl"
+
+#if defined PBR_REFLECTIONS || WATER_REFLECT_QUALITY > 0 && WORLD_SPACE_REFLECTIONS_INTERNAL > 0
+    #include "/lib/materials/materialMethods/reflectionBlurFilter.glsl"
+#endif
+
+#ifdef BLOOM_FOG_COMPOSITE1
+    #include "/lib/atmospherics/fog/bloomFog.glsl"
+#endif
+
+#ifdef LIGHTSHAFTS_ACTIVE
+    #ifdef END
+        #include "/lib/atmospherics/enderBeams.glsl"
+    #endif
+    #include "/lib/atmospherics/volumetricLight.glsl"
+#endif
+
+#if WATER_MAT_QUALITY >= 3 || defined NETHER_STORM || defined COLORED_LIGHT_FOG
+    #include "/lib/util/spaceConversion.glsl"
+#endif
+
+#if WATER_MAT_QUALITY >= 3
+    #include "/lib/materials/materialMethods/refraction.glsl"
+#endif
+
+#ifdef NETHER_STORM
+    #include "/lib/atmospherics/netherStorm.glsl"
+#endif
+
+#ifdef ATM_COLOR_MULTS
+    #include "/lib/colors/colorMultipliers.glsl"
+#endif
+#ifdef MOON_PHASE_INF_ATMOSPHERE
+    #include "/lib/colors/moonPhaseInfluence.glsl"
+#endif
+
+#if RAINBOWS > 0 && defined OVERWORLD
+    #include "/lib/atmospherics/rainbow.glsl"
+#endif
+
+#ifdef COLORED_LIGHT_FOG
+    #include "/lib/voxelization/lightVoxelization.glsl"
+    #include "/lib/atmospherics/fog/coloredLightFog.glsl"
+#endif
 
 //Program//
 void main() {
-    vec4 color = texture2D(colortex0,texCoord.xy);
+    vec3 color = texelFetch(colortex0, texelCoord, 0).rgb;
+    float z0 = texelFetch(depthtex0, texelCoord, 0).r;
+    float z1 = texelFetch(depthtex1, texelCoord, 0).r;
 
-	#ifdef VL_CLOUDS
-		float offsetC = 2.0;
-		float lodC = 1.5;
-		vec4 clouds1 = texture2DLod(colortex5, texCoord.xy + vec2( 0.0,  offsetC / viewHeight), lodC);
-		vec4 clouds2 = texture2DLod(colortex5, texCoord.xy + vec2( 0.0, -offsetC / viewHeight), lodC);
-		vec4 clouds3 = texture2DLod(colortex5, texCoord.xy + vec2( offsetC / viewWidth,   0.0), lodC);
-		vec4 clouds4 = texture2DLod(colortex5, texCoord.xy + vec2(-offsetC / viewWidth,   0.0), lodC);
-		vec4 clouds = (clouds1 + clouds2 + clouds3 + clouds4) * 0.25;
-		clouds *= clouds;
-	#endif
+    vec4 screenPos = vec4(texCoord, z0, 1.0);
+    vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
+    viewPos /= viewPos.w;
+    float lViewPos = length(viewPos.xyz);
 
-	#ifdef END
-		vec3 vl = texture2DLod(colortex1, texCoord.xy, 1.5).rgb;
-		vl *= vl;
-	#else
-		#if LIGHT_SHAFT_QUALITY == 1
-			float lod = 1.0;
-		#elif LIGHT_SHAFT_QUALITY == 2
-			float lod = 0.5;
-		#else
-			float lod = 0.0;
-		#endif
-		
-		#ifndef MC_GL_RENDERER_GEFORCE
-			if (fract(viewHeight / 2.0) > 0.25 || fract(viewWidth / 2.0) > 0.25) 
-				lod = 0.0;
-		#endif
+    #if defined DISTANT_HORIZONS && !defined OVERWORLD
+        float z0DH = texelFetch(dhDepthTex, texelCoord, 0).r;
+        vec4 screenPosDH = vec4(texCoord, z0DH, 1.0);
+        vec4 viewPosDH = dhProjectionInverse * (screenPosDH * 2.0 - 1.0);
+        viewPosDH /= viewPosDH.w;
+        lViewPos = min(lViewPos, length(viewPosDH.xyz));
+    #endif
 
-		float offset = 1.0;
-		vec3 vl1 = texture2DLod(colortex1, texCoord.xy + vec2( 0.0,  offset / viewHeight), lod).rgb;
-		vec3 vl2 = texture2DLod(colortex1, texCoord.xy + vec2( 0.0, -offset / viewHeight), lod).rgb;
-		vec3 vl3 = texture2DLod(colortex1, texCoord.xy + vec2( offset / viewWidth,   0.0), lod).rgb;
-		vec3 vl4 = texture2DLod(colortex1, texCoord.xy + vec2(-offset / viewWidth,   0.0), lod).rgb;
-		vec3 vlSum = (vl1 + vl2 + vl3 + vl4) * 0.25;
-		vec3 vl = vlSum;
+    float dither = texture2DLod(noisetex, texCoord * view / 128.0, 0.0).b;
+    #ifdef TAA
+        dither = fract(dither + goldenRatio * mod(float(frameCounter), 3600.0));
+    #endif
 
-		vl *= vl;
-	#endif
-	#if MC_VERSION >= 11900
-		vl *= 1.0 - darknessFactor;
-	#endif
-	vec3 vlP = vl;
+    /* TM5723: The "1.0 - translucentMult" trick is done because of the default color attachment
+    value being vec3(0.0). This makes it vec3(1.0) to avoid issues especially on improved glass */
+    vec3 translucentMult = 1.0 - texelFetch(colortex3, texelCoord, 0).rgb; //TM5723
+    vec4 volumetricEffect = vec4(0.0);
 
-	#ifdef OVERWORLD
-		if (isEyeInWater == 0) {
-			#if LIGHT_SHAFT_MODE == 2
-				vec4 screenPos = vec4(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z, 1.0);
-				vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
-				viewPos /= viewPos.w;
-				vec3 nViewPos = normalize(viewPos.xyz);
+    vec2 texCoordM = texCoord;
+    #if WATER_MAT_QUALITY >= 3
+        texCoordM = DoRefraction(color, z0, z1, viewPos.xyz, lViewPos);
+    #endif
 
-				float NdotU = dot(nViewPos, upVec);
-				NdotU = max(NdotU, 0.0);
-				NdotU = 1.0 - NdotU;
-				if (NdotU > 0.5) NdotU = smoothstep(0.0, 1.0, NdotU);
-				NdotU *= NdotU;
-				NdotU *= NdotU;
-				NdotU = mix(NdotU, 1.0, rainStrengthSp2 * 0.75);
-				vl *= NdotU * NdotU;
-			#else
-				vec4 screenPos = vec4(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z, 1.0);
-				vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
-				viewPos /= viewPos.w;
-				vec3 nViewPos = normalize(viewPos.xyz);
+    #if defined PBR_REFLECTIONS || WATER_REFLECT_QUALITY > 0 && WORLD_SPACE_REFLECTIONS_INTERNAL > 0
+        if (z0 < 1.0) {
+            vec4 compositeReflection = texture2D(colortex7, texCoord);
 
-				float NdotU = dot(nViewPos, upVec);
-				NdotU = max(NdotU, 0.0);
-				NdotU = 1.0 - NdotU;
-				if (NdotU > 0.5) NdotU = smoothstep(0.0, 1.0, NdotU);
-				NdotU = mix(NdotU, 1.0, rainStrengthSp2 * 0.75);
-				NdotU = pow(NdotU, 8.0 * smoothstep(0.0, 1.0, pow2(1.0 - worldBrightness)));
-				vl *= max(NdotU, 0.0); // Using max() here fixes a bug that affects auto exposure
-			#endif
-			vlP = vl;
+            // Partial fix for half resolution WSR-only reflections having a lot of sky gaps
+            #if WORLD_SPACE_REF_MODE == 1
+                if (REFLECTION_RES < 0.6) {
+                    vec2 refOffsets[4] = vec2[4](
+                        vec2( 1.0, 1.0),
+                        vec2(-1.0, 1.0),
+                        vec2( 1.0,-1.0),
+                        vec2(-1.0,-1.0)
+                    );
 
-			vec3 lightCol2 = lightCol * lightCol;
-			vec3 dayLightCol = lightCol2 * 0.73;
-			vec3 nightLightCol = lightCol2 * 20.0;
-			vec3 vlColor = mix(nightLightCol, dayLightCol, sunVisibility);
-			//duplicate 98765
-			vec3 weatherSky = weatherCol * weatherCol;
-			weatherSky *= GetLuminance(ambientCol / (weatherSky)) * 1.4;
-			weatherSky *= mix(SKY_RAIN_NIGHT, SKY_RAIN_DAY, sunVisibility);
-			weatherSky = max(weatherSky, skyColor * skyColor * 0.75); // Lightning Sky Color
-			weatherSky *= rainStrengthS;
-			vlColor = mix(vlColor, weatherSky * 10.0, rainStrengthSp2);
-			vl *= vlColor;
+                    for (int i = 0; i < 4; i++) {
+                        vec4 compositeRefSample = texture2D(colortex7, texCoord + refOffsets[i] * 1.5 / view);
+                        if (compositeRefSample.a > compositeReflection.a * 1.01) compositeReflection = compositeRefSample;
+                    }
+                }
+            #endif
 
-			float rainMult = mix(LIGHT_SHAFT_NIGHT_RAIN_MULTIPLIER,
-									LIGHT_SHAFT_DAY_RAIN_MULTIPLIER * (0.65 + 0.2 * vsBrightness),
-									sunVisibility);
-			#if LIGHT_SHAFT_MODE == 2
-				vl *= mix(1.0, LIGHT_SHAFT_NOON_MULTIPLIER * 0.4, timeBrightness * (1.0 - rainStrengthS * 0.8));
-				vl *= mix(LIGHT_SHAFT_NIGHT_MULTIPLIER * 0.65, 2.0, sunVisibility);
-				vl *= mix(1.0, rainMult, rainStrengthSp2);
-			#else
-				float timeBrightnessSqrt = sqrt1(timeBrightness);
-				
-				vl *= mix(1.0, LIGHT_SHAFT_NOON_MULTIPLIER * 0.75, timeBrightnessSqrt * (1.0 - rainStrengthS * 0.8));
-				vl *= mix(LIGHT_SHAFT_NIGHT_MULTIPLIER * (0.91 - moonBrightness * 0.39), 2.0, sunVisibility);
-				vl *= mix(1.0, rainMult, rainStrengthSp2);
-			#endif
-		} else vl *= length(lightCol) * 0.175 * LIGHT_SHAFT_UNDERWATER_MULTIPLIER  * (1.0 - rainStrengthS * 0.85);
-	#endif
+            float fresnelM = pow2(texture2D(colortex4, texCoord).a); // including attenuation through fog and clouds
+            if (abs(fresnelM - 0.5) < 0.5) { // 0.0 fresnel doesnt need ref calculations, and 1.0 fresnel basically means error
+                if (z0 == z1 || z0 <= 0.56) { // Solids
+                    #ifdef PBR_REFLECTIONS
+                        if (fresnelM > 0.00001) {
+                            compositeReflection = sampleBlurFilteredReflection(compositeReflection, dither, z0);
 
-	#ifdef END
-   		vl *= endCol * 0.1 * LIGHT_SHAFT_THE_END_MULTIPLIER;
-    	vl *= LIGHT_SHAFT_STRENGTH * (1.0 - rainStrengthS * eBS * 0.875) * shadowFade * (1.0 + isEyeInWater*1.5) * (1.0 - blindFactor);
-	#else
-		vl *= LIGHT_SHAFT_STRENGTH * shadowFade * (1.0 - blindFactor);
+                            compositeReflection.rgb = max(compositeReflection.rgb, vec3(0.0)); // We seem to have some negative values for some reason
+                            
+                            // This physically doesn't make sense but fits Minecraft
+                            const float texturePreservation = 0.7;
+                            compositeReflection.rgb = mix(compositeReflection.rgb, max(color, compositeReflection.rgb), texturePreservation);
 
-		float vlFactor = (1.0 - min((timeBrightness)*2.0, 0.75));
-		vlFactor = mix(vlFactor, 0.05, rainStrengthS);
-		if (isEyeInWater == 1) vlFactor = 3.0;
-		vl *= vlFactor * 1.15;
-	#endif
+                            color = mix(color, compositeReflection.rgb, fresnelM);
+                        }
+                    #endif
+                }
+                #if WORLD_SPACE_REFLECTIONS_INTERNAL > 0
+                    else { // Translucents
+                        vec4 ssrReflection = texture2D(colortex8, texCoordM);
+                        color = max(color - ssrReflection.rgb, vec3(0.0));
 
-	#if NIGHT_VISION > 1
-		if (nightVision > 0.0) {
-			vl = vec3(0.0, length(vl), 0.0);
-		}
-	#endif
+                        compositeReflection.rgb *= fresnelM;
+                        compositeReflection = mix(compositeReflection, ssrReflection, float(ssrReflection.a > 0.999));
+                        vec3 combinedRef = mix(ssrReflection.rgb, compositeReflection.rgb, compositeReflection.a);
 
-	#ifdef END
-		color.rgb += vl;
-	#else
-		vec3 addedColor = color.rgb + vl * lightShaftTime;
-		#if LIGHT_SHAFT_MODE == 2
-			vec3 vlMixBlend = vlP * (1.0 - 0.5 * rainStrengthS);
-		#else
-			vec3 vlMixBlend = vlP * 0.5;
-			vlP *= 0.75;
-		#endif
-		float mixedTime = sunVisibility < 0.5 ?
-						  sqrt3(max(moonBrightness - 0.3, 0.0) / 0.7) * lightShaftTime
-						  : pow2(pow2((sunVisibilityLSM - 0.5) * 2.0));
-		vec3 mixedColor = mix(color.rgb, vl / max(vlP, 0.01), vlMixBlend * mixedTime);
-		color.rgb = mix(mixedColor, addedColor, sunVisibility * (1.0 - rainStrengthS));
-	#endif
+                        color += combinedRef;
+                    }
+                #endif
+            }
+        }
+    #endif
 
-	#ifdef VL_CLOUDS
-		clouds.a *= CLOUD_OPACITY;
-		color.rgb = mix(color.rgb, clouds.rgb, clouds.a);
-	#endif
-	
-	/*DRAWBUFFERS:0*/
-	gl_FragData[0] = color;
+    vec4 screenPos1 = vec4(texCoord, z1, 1.0);
+    vec4 viewPos1 = gbufferProjectionInverse * (screenPos1 * 2.0 - 1.0);
+    viewPos1 /= viewPos1.w;
+    float lViewPos1 = length(viewPos1.xyz);
+
+    #if defined DISTANT_HORIZONS && !defined OVERWORLD
+        float z1DH = texelFetch(dhDepthTex1, texelCoord, 0).r;
+        vec4 screenPos1DH = vec4(texCoord, z1DH, 1.0);
+        vec4 viewPos1DH = dhProjectionInverse * (screenPos1DH * 2.0 - 1.0);
+        viewPos1DH /= viewPos1DH.w;
+        lViewPos1 = min(lViewPos1, length(viewPos1DH.xyz));
+    #endif
+
+    #if defined LIGHTSHAFTS_ACTIVE || RAINBOWS > 0 && defined OVERWORLD
+        vec3 nViewPos = normalize(viewPos1.xyz);
+        float VdotL = dot(nViewPos, lightVec);
+        float VdotU = dot(nViewPos, upVec);
+    #endif
+
+    #if defined NETHER_STORM || defined COLORED_LIGHT_FOG
+        vec3 playerPos = ViewToPlayer(viewPos1.xyz);
+        vec3 nPlayerPos = normalize(playerPos);
+    #endif
+
+    #if RAINBOWS > 0 && defined OVERWORLD
+        color += GetRainbow(translucentMult, nViewPos, z0, z1, lViewPos, lViewPos1, VdotL, VdotU, dither);
+    #endif
+
+    #ifdef LIGHTSHAFTS_ACTIVE
+        float vlFactorM = vlFactor;
+
+        volumetricEffect = GetVolumetricLight(color, vlFactorM, translucentMult, lViewPos, lViewPos1, nViewPos, VdotL, VdotU, texCoord, z0, z1, dither);
+    #endif
+
+    #ifdef NETHER_STORM
+        volumetricEffect = GetNetherStorm(color, translucentMult, nPlayerPos, playerPos, lViewPos, lViewPos1, dither);
+    #endif
+
+    #ifdef ATM_COLOR_MULTS
+        volumetricEffect.rgb *= GetAtmColorMult();
+    #endif
+    #ifdef MOON_PHASE_INF_ATMOSPHERE
+        volumetricEffect.rgb *= moonPhaseInfluence;
+    #endif
+
+    #ifdef NETHER_STORM
+        color = mix(color, volumetricEffect.rgb, volumetricEffect.a);
+    #endif
+
+    #ifdef COLORED_LIGHT_FOG
+        vec3 lightFog = GetColoredLightFog(nPlayerPos, translucentMult, lViewPos, lViewPos1, dither);
+        float lightFogMult = COLORED_LIGHT_FOG_I;
+        //if (heldItemId == 40000 && heldItemId2 != 40000) lightFogMult = 0.0; // Hold spider eye to disable light fog
+
+        #ifdef OVERWORLD
+            lightFogMult *= 0.2 + 0.6 * mix(1.0, 1.0 - sunFactor * invRainFactor, eyeBrightnessM);
+        #endif
+    #endif
+
+    if (isEyeInWater == 1) {
+        if (z0 == 1.0) color.rgb = waterFogColor;
+
+        vec3 underwaterMult = vec3(0.80, 0.87, 0.97);
+        color.rgb *= underwaterMult * 0.85;
+        volumetricEffect.rgb *= pow2(underwaterMult * 0.71);
+
+        #ifdef COLORED_LIGHT_FOG
+            lightFog *= underwaterMult;
+        #endif
+    } else if (isEyeInWater == 2) {
+        if (z1 == 1.0) color.rgb = fogColor * 5.0;
+
+        volumetricEffect.rgb *= 0.0;
+        #ifdef COLORED_LIGHT_FOG
+            lightFog *= 0.0;
+        #endif
+    }
+
+    #ifdef COLORED_LIGHT_FOG
+        color /= 1.0 + pow2(GetLuminance(lightFog)) * lightFogMult * 2.0;
+
+        lightFog = lightFog * lightFogMult * 0.5;
+        #ifdef TAA
+            // TAA neighbourhood clamping causes light fog to go too bandy. Extra dither fixes it.
+            lightFog = max(vec3(0.0), lightFog + (dither - 0.5) * 0.02);
+        #endif
+        color += lightFog;
+    #endif
+
+    color = pow(color, vec3(2.2));
+
+    #ifdef LIGHTSHAFTS_ACTIVE
+        #ifdef END
+            volumetricEffect.rgb *= volumetricEffect.rgb;
+        #endif
+
+        color += volumetricEffect.rgb;
+    #endif
+
+    #ifdef BLOOM_FOG_COMPOSITE1
+        color *= GetBloomFog(lViewPos); // Reminder: Bloom Fog can move between composite1-2-3
+    #endif
+
+    /* DRAWBUFFERS:0 */
+    gl_FragData[0] = vec4(color, 1.0);
+
+    // supposed to be #if defined LIGHTSHAFTS_ACTIVE && (LIGHTSHAFT_BEHAVIOUR == 1 && SHADOW_QUALITY >= 1 || defined END)
+    #if LIGHTSHAFT_QUALI_DEFINE > 0 && LIGHTSHAFT_BEHAVIOUR == 1 && SHADOW_QUALITY >= 1 && defined OVERWORLD || defined END
+        #if LENSFLARE_MODE > 0 || defined ENTITY_TAA_NOISY_CLOUD_FIX
+            if (viewWidth + viewHeight - gl_FragCoord.x - gl_FragCoord.y > 1.5)
+                vlFactorM = texelFetch(colortex5, texelCoord, 0).a;
+        #endif
+
+        /* DRAWBUFFERS:05 */
+        gl_FragData[1] = vec4(0.0, 0.0, 0.0, vlFactorM);
+    #endif
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
 
-//Uniforms//
+noperspective out vec2 texCoord;
 
-uniform mat4 gbufferModelView;
+flat out vec3 upVec, sunVec;
+
+#ifdef LIGHTSHAFTS_ACTIVE
+    flat out float vlFactor;
+#endif
+
+//Attributes//
 
 //Common Variables//
-#ifdef OVERWORLD
-	float timeAngleM = timeAngle;
-#else
-	#if !defined SEVEN && !defined SEVEN_2
-		float timeAngleM = 0.25;
-	#else
-		float timeAngleM = 0.5;
-	#endif
-#endif
+
+//Common Functions//
+
+//Includes//
 
 //Program//
 void main() {
-	texCoord = gl_MultiTexCoord0.xy;
-	
-	gl_Position = ftransform();
+    gl_Position = ftransform();
 
-	const vec2 sunRotationData = vec2(cos(sunPathRotation * 0.01745329251994), -sin(sunPathRotation * 0.01745329251994));
-	float ang = fract(timeAngleM - 0.25);
-	ang = (ang + (cos(ang * 3.14159265358979) * -0.5 + 0.5 - ang) / 3.0) * 6.28318530717959;
-	sunVec = normalize((gbufferModelView * vec4(vec3(-sin(ang), cos(ang) * sunRotationData) * 2000.0, 1.0)).xyz);
+    texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 
-	upVec = normalize(gbufferModelView[1].xyz);
+    upVec = normalize(gbufferModelView[1].xyz);
+    sunVec = GetSunVector();
+
+    #ifdef LIGHTSHAFTS_ACTIVE
+        #if LIGHTSHAFT_BEHAVIOUR == 1 && SHADOW_QUALITY >= 1 || defined END
+            vlFactor = texelFetch(colortex5, ivec2(viewWidth-1, viewHeight-1), 0).a;
+        #else
+            #if LIGHTSHAFT_BEHAVIOUR == 2
+                vlFactor = 0.0;
+            #elif LIGHTSHAFT_BEHAVIOUR == 3
+                vlFactor = 1.0;
+            #endif
+        #endif
+    #endif
 }
 
 #endif

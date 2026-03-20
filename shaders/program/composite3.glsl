@@ -1,166 +1,188 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/ 
+/////////////////////////////////////
+// Complementary Shaders by EminGT //
+/////////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-varying vec2 texCoord;
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-uniform sampler2D colortex0;
+#if WORLD_BLUR > 0
+    noperspective in vec2 texCoord;
 
-#if defined DOF_IS_ON || (defined NETHER_BLUR && defined NETHER)
-
-uniform int isEyeInWater;
-
-uniform float viewWidth, viewHeight, aspectRatio;
-
-uniform sampler2D depthtex1;
-uniform sampler2D depthtex0;
-
-uniform mat4 gbufferProjection;
-
-#if DOF == 2 || (defined NETHER_BLUR && defined NETHER)
-	uniform mat4 gbufferProjectionInverse;
-
-	uniform float rainStrengthS;
-	uniform ivec2 eyeBrightnessSmooth;
+    flat in vec3 upVec, sunVec;
 #endif
 
-#if DOF == 1 && !(defined NETHER_BLUR && defined NETHER) && DOF_FOCUS == 0
-	uniform float centerDepthSmooth;
+//Pipeline Constants//
+#if WORLD_BLUR > 0
+    const bool colortex0MipmapEnabled = true;
 #endif
-
-#if DOF == 1 && !(defined NETHER_BLUR && defined NETHER) && DOF_FOCUS > 0
-	uniform float far, near;
-#endif
-
-//Optifine Constants//
-const bool colortex0MipmapEnabled = true;
 
 //Common Variables//
-vec2 dofOffsets[18] = vec2[18](
-	vec2( 0.0    ,  0.25  ),
-	vec2(-0.2165 ,  0.125 ),
-	vec2(-0.2165 , -0.125 ),
-	vec2( 0      , -0.25  ),
-	vec2( 0.2165 , -0.125 ),
-	vec2( 0.2165 ,  0.125 ),
-	vec2( 0      ,  0.5   ),
-	vec2(-0.25   ,  0.433 ),
-	vec2(-0.433  ,  0.25  ),
-	vec2(-0.5    ,  0     ),
-	vec2(-0.433  , -0.25  ),
-	vec2(-0.25   , -0.433 ),
-	vec2( 0      , -0.5   ),
-	vec2( 0.25   , -0.433 ),
-	vec2( 0.433  , -0.2   ),
-	vec2( 0.5    ,  0     ),
-	vec2( 0.433  ,  0.25  ),
-	vec2( 0.25   ,  0.433 )
-);
+#if WORLD_BLUR > 0
+    #if WORLD_BLUR == 2 && WB_DOF_FOCUS >= 0
+        #if WB_DOF_FOCUS == 0
+            uniform float centerDepthSmooth;
+        #else
+            float centerDepthSmooth = (far * (WB_DOF_FOCUS - near)) / (WB_DOF_FOCUS * (far - near));
+        #endif
+    #endif
+#endif
 
-#if DOF == 2 || (defined NETHER_BLUR && defined NETHER)
-	float eBS = eyeBrightnessSmooth.y / 240.0;
+#if WORLD_BLUR > 0
+    float SdotU = dot(sunVec, upVec);
+    float sunFactor = SdotU < 0.0 ? clamp(SdotU + 0.375, 0.0, 0.75) / 0.75 : clamp(SdotU + 0.03125, 0.0, 0.0625) / 0.0625;
+
+    vec2 dofOffsets[18] = vec2[18](
+        vec2( 0.0    ,  0.25  ),
+        vec2(-0.2165 ,  0.125 ),
+        vec2(-0.2165 , -0.125 ),
+        vec2( 0      , -0.25  ),
+        vec2( 0.2165 , -0.125 ),
+        vec2( 0.2165 ,  0.125 ),
+        vec2( 0      ,  0.5   ),
+        vec2(-0.25   ,  0.433 ),
+        vec2(-0.433  ,  0.25  ),
+        vec2(-0.5    ,  0     ),
+        vec2(-0.433  , -0.25  ),
+        vec2(-0.25   , -0.433 ),
+        vec2( 0      , -0.5   ),
+        vec2( 0.25   , -0.433 ),
+        vec2( 0.433  , -0.2   ),
+        vec2( 0.5    ,  0     ),
+        vec2( 0.433  ,  0.25  ),
+        vec2( 0.25   ,  0.433 )
+    );
 #endif
 
 //Common Functions//
-vec3 GetBlur(vec3 color, float z) {
-	vec3 dof = vec3(0.0);
-	float hand = float(z < 0.56);
+#if WORLD_BLUR > 0
+    void DoWorldBlur(inout vec3 color, float z1, float lViewPos0) {
+        if (z1 < 0.56) return;
+        vec3 dof = vec3(0.0);
+        vec2 dofScale = vec2(1.0, aspectRatio);
 
-	#if DOF == 2 || (defined NETHER && defined NETHER_BLUR)
-		float z0 = texture2D(depthtex0, texCoord.xy).r;
-		vec4 screenPos = vec4(texCoord.x, texCoord.y, z0, 1.0);
-		vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
-		viewPos /= viewPos.w;
-	#endif
+        #if WORLD_BLUR == 1 // Distance Blur
+            #ifdef OVERWORLD
+                float dbMult;
+                if (isEyeInWater == 0) {
+                    dbMult = mix(WB_DB_NIGHT_I, WB_DB_DAY_I, sunFactor * eyeBrightnessM);
+                    dbMult = mix(dbMult, WB_DB_RAIN_I, rainFactor * eyeBrightnessM);
+                } else dbMult = WB_DB_WATER_I;
+            #elif defined NETHER
+                float dbMult = WB_DB_NETHER_I;
+            #elif defined END
+                float dbMult = WB_DB_END_I;
+            #endif
+            float coc = clamp(lViewPos0 * 0.001, 0.0, 0.1) * dbMult * 0.03;
+        #elif WORLD_BLUR == 2 // Depth Of Field
+            #if WB_DOF_FOCUS >= 0
+                float coc = max(abs(z1 - centerDepthSmooth) * 0.125 * WB_DOF_I - 0.0001, 0.0);
+            #elif WB_DOF_FOCUS == -1
+                float coc = clamp(abs(lViewPos0 * 0.005 - pow2(vsBrightness)), 0.0, 0.1) * WB_DOF_I * 0.03;
+            #endif
+        #endif
+        coc = coc / sqrt(coc * coc + 0.1);
 
-	#if defined NETHER && defined NETHER_BLUR
-		// Nether Blur
-		float coc = max(min(length(viewPos) * 0.001, 0.1) * NETHER_BLUR_STRENGTH / 256, 0.0);
-	#elif DOF == 2
-		// Distance Blur
-		float coc = min(length(viewPos) * 0.001, 0.1) * DOF_STRENGTH
-					* (1.0 + max(rainStrengthS * eBS * RAIN_BLUR_MULT, isEyeInWater * UNDERWATER_BLUR_MULT)) / 256;
-		coc = max(coc, 0.0);
-	#else
-		// Depth Of Field
-		#if DOF_FOCUS > 0
-			float centerDepthSmooth = (far * (DOF_FOCUS - near)) / (DOF_FOCUS * (far - near));
-		#endif
-		float coc = max(abs(z - centerDepthSmooth) * 0.125 * DOF_STRENGTH - 0.0001, 0.0);
-	#endif
-		coc = coc / sqrt(coc * coc + 0.1);
+        #ifdef WB_FOV_SCALED
+            coc *= gbufferProjection[1][1] * 0.8;
+        #endif
+        #ifdef WB_CHROMATIC
+            float midDistX = texCoord.x - 0.5;
+            float midDistY = texCoord.y - 0.5;
+            vec2 chromaticScale = vec2(midDistX, midDistY);
+            chromaticScale = sign(chromaticScale) * sqrt(abs(chromaticScale));
+            chromaticScale *= vec2(1.0, viewHeight / viewWidth);
+            vec2 aberration = (15.0 / vec2(viewWidth, viewHeight)) * chromaticScale * coc;
+        #endif
+        #ifdef WB_ANAMORPHIC
+            dofScale *= vec2(0.5, 1.5);
+        #endif
 
-	vec2 dofScale = vec2(1.0, aspectRatio);
-
-	#ifdef ANAMORPHIC_BLUR
-		dofScale *= vec2(0.5, 1.5);
-	#endif
-	#ifdef FOV_SCALED_BLUR
-		coc *= gbufferProjection[1][1] / 1.37;
-	#endif
-	#ifdef CHROMATIC_BLUR
-		float midDistX = texCoord.x - 0.5;
-		float midDistY = texCoord.y - 0.5;
-		vec2 chromaticScale = vec2(midDistX, midDistY);
-		chromaticScale = sign(chromaticScale) * sqrt(abs(chromaticScale));
-		chromaticScale *= vec2(1.0, viewHeight / viewWidth);
-		vec2 aberration = (15.0 / vec2(viewWidth, viewHeight)) * chromaticScale * coc;
-	#endif
-
-	if (coc * 0.5 > 1.0 / max(viewWidth, viewHeight) && hand < 0.5) {
-		for(int i = 0; i < 18; i++) {
-			vec2 offset = dofOffsets[i] * coc * 0.0085 * dofScale;
-			float lod = log2(viewHeight * aspectRatio * coc * 0.75 / 320.0);
-			#ifndef CHROMATIC_BLUR
-				dof += texture2DLod(colortex0, texCoord + offset, lod).rgb;
-			#else
-				dof += vec3(texture2DLod(colortex0, texCoord + offset + aberration, lod).r,
-							texture2DLod(colortex0, texCoord + offset             , lod).g,
-							texture2DLod(colortex0, texCoord + offset - aberration, lod).b);
-			#endif
-		}
-		dof /= 18.0;
-	}
-	else dof = color;
-	return dof;
-}
+        if (coc * 0.5 > 1.0 / max(viewWidth, viewHeight)) {
+            for (int i = 0; i < 18; i++) {
+                vec2 offset = dofOffsets[i] * coc * 0.0085 * dofScale;
+                float lod = log2(viewHeight * aspectRatio * coc * 0.75 / 320.0);
+                #ifndef WB_CHROMATIC
+                    dof += texture2DLod(colortex0, texCoord + offset, lod).rgb;
+                #else
+                    dof += vec3(texture2DLod(colortex0, texCoord + offset + aberration, lod).r,
+                                texture2DLod(colortex0, texCoord + offset             , lod).g,
+                                texture2DLod(colortex0, texCoord + offset - aberration, lod).b);
+                #endif
+            }
+            dof /= 18.0;
+            color = dof;
+        }
+    }
+#endif
 
 //Includes//
-
+#if WORLD_BLUR > 0 && defined BLOOM_FOG_COMPOSITE3
+    #include "/lib/atmospherics/fog/bloomFog.glsl"
 #endif
 
 //Program//
 void main() {
-	vec3 color = texture2DLod(colortex0, texCoord, 0.0).rgb;
-	
-	#if defined DOF_IS_ON || (defined NETHER && defined NETHER_BLUR)
-	float z = texture2D(depthtex1, texCoord.st).x;
+    vec3 color = texelFetch(colortex0, texelCoord, 0).rgb;
 
-	color = GetBlur(color, z);
-	#endif
-	
-    /*DRAWBUFFERS:0*/
-	gl_FragData[0] = vec4(color,1.0);
+    #if WORLD_BLUR > 0
+        float z1 = texelFetch(depthtex1, texelCoord, 0).r;
+        float z0 = texelFetch(depthtex0, texelCoord, 0).r;
+
+        vec4 screenPos = vec4(texCoord, z0, 1.0);
+        vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
+        viewPos /= viewPos.w;
+        float lViewPos = length(viewPos.xyz);
+
+        #if defined DISTANT_HORIZONS && defined NETHER
+            float z0DH = texelFetch(dhDepthTex, texelCoord, 0).r;
+            vec4 screenPosDH = vec4(texCoord, z0DH, 1.0);
+            vec4 viewPosDH = dhProjectionInverse * (screenPosDH * 2.0 - 1.0);
+            viewPosDH /= viewPosDH.w;
+            lViewPos = min(lViewPos, length(viewPosDH.xyz));
+        #endif
+
+        DoWorldBlur(color, z1, lViewPos);
+
+        #ifdef BLOOM_FOG_COMPOSITE3
+            color *= GetBloomFog(lViewPos); // Reminder: Bloom Fog can move between composite1-3
+        #endif
+    #endif
+
+    /* DRAWBUFFERS:0 */
+    gl_FragData[0] = vec4(color, 1.0);
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
+
+#if WORLD_BLUR > 0
+    noperspective out vec2 texCoord;
+
+    flat out vec3 upVec, sunVec;
+#endif
+
+//Attributes//
+
+//Common Variables//
+
+//Common Functions//
+
+//Includes//
 
 //Program//
 void main() {
-	texCoord = gl_MultiTexCoord0.xy;
-	
-	gl_Position = ftransform();
+    gl_Position = ftransform();
+
+    #if WORLD_BLUR > 0
+        texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
+        upVec = normalize(gbufferModelView[1].xyz);
+        sunVec = GetSunVector();
+    #endif
 }
 
 #endif

@@ -1,348 +1,222 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+/////////////////////////////////////
+// Complementary Shaders by EminGT //
+/////////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-varying vec2 texCoord, lmCoord;
-
-varying vec3 normal;
-varying vec3 sunVec, upVec;
-
-varying vec4 color;
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-#ifndef NO_PARTICLES
+in vec2 texCoord;
+in vec2 lmCoord;
 
-//Uniforms//
-uniform int frameCounter;
-uniform int isEyeInWater;
+flat in vec3 upVec, sunVec, northVec, eastVec;
+in vec3 normal;
 
-#ifdef DYNAMIC_SHADER_LIGHT
-	uniform int heldItemId, heldItemId2;
+flat in vec4 glColor;
 
-	uniform int heldBlockLightValue;
-	uniform int heldBlockLightValue2;
-#endif
-
-uniform float isEyeInCave;
-uniform float blindFactor;
-uniform float far;
-uniform float frameTimeCounter;
-uniform float nightVision;
-uniform float rainStrengthS;
-uniform float screenBrightness; 
-uniform float viewWidth, viewHeight;
-uniform float eyeAltitude;
-
-uniform ivec2 eyeBrightnessSmooth;
-uniform ivec2 atlasSize;
-
-uniform vec3 skyColor;
-uniform vec3 fogColor;
-uniform vec3 cameraPosition;
-
-uniform mat4 gbufferProjectionInverse;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 shadowProjection;
-uniform mat4 shadowModelView;
-
-uniform sampler2D texture;
-
-#if ((defined WATER_CAUSTICS || defined CLOUD_SHADOW) && defined OVERWORLD) || defined RANDOM_BLOCKLIGHT || defined END || (defined NETHER && defined NETHER_SMOKE)
-	uniform sampler2D noisetex;
-#endif
-
-#if !defined COMPATIBILITY_MODE && MC_VERSION >= 11700
-	uniform ivec4 blendFunc;
-#endif
-
-#ifdef COLORED_LIGHT
-	uniform sampler2D colortex9;
-#endif
-
-#if MC_VERSION >= 11900
-	uniform float darknessLightFactor;
-#endif
+//Pipeline Constants//
 
 //Common Variables//
-float eBS = eyeBrightnessSmooth.y / 240.0;
-float sunVisibility = clamp(dot( sunVec,upVec) + 0.0625, 0.0, 0.125) * 8.0;
-float vsBrightness = clamp(screenBrightness, 0.0, 1.0);
-
-#if WORLD_TIME_ANIMATION >= 2
-	float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
-#else
-	float frametime = frameTimeCounter * ANIMATION_SPEED;
-#endif
+float NdotU = dot(normal, upVec);
+float NdotUmax0 = max(NdotU, 0.0);
+float SdotU = dot(sunVec, upVec);
+float sunFactor = SdotU < 0.0 ? clamp(SdotU + 0.375, 0.0, 0.75) / 0.75 : clamp(SdotU + 0.03125, 0.0, 0.0625) / 0.0625;
+float sunVisibility = clamp(SdotU + 0.0625, 0.0, 0.125) / 0.125;
+float sunVisibility2 = sunVisibility * sunVisibility;
+float shadowTimeVar1 = abs(sunVisibility - 0.5) * 2.0;
+float shadowTimeVar2 = shadowTimeVar1 * shadowTimeVar1;
+float shadowTime = shadowTimeVar2 * shadowTimeVar2;
 
 #ifdef OVERWORLD
-	vec3 lightVec = sunVec * ((timeAngle < 0.5325 || timeAngle > 0.9675) ? 1.0 : -1.0);
+    vec3 lightVec = sunVec * ((timeAngle < 0.5325 || timeAngle > 0.9675) ? 1.0 : -1.0);
 #else
-	vec3 lightVec = sunVec;
+    vec3 lightVec = sunVec;
 #endif
 
 //Common Functions//
-float GetLuminance(vec3 color) {
-	return dot(color,vec3(0.299, 0.587, 0.114));
-}
- 
+
 //Includes//
-#include "/lib/color/blocklightColor.glsl"
-#include "/lib/color/skyColor.glsl"
-#include "/lib/color/dimensionColor.glsl"
 #include "/lib/util/spaceConversion.glsl"
-#include "/lib/color/waterColor.glsl"
-#include "/lib/lighting/forwardLighting.glsl"
+#include "/lib/lighting/mainLighting.glsl"
+#include "/lib/util/dither.glsl"
 
 #if MC_VERSION >= 11500
-#ifdef OVERWORLD
-#include "/lib/atmospherics/sky.glsl"
+    #include "/lib/atmospherics/fog/mainFog.glsl"
 #endif
 
-#if (defined END && defined ENDER_NEBULA) || (defined NETHER && defined NETHER_SMOKE)
-#include "/lib/atmospherics/skyboxEffects.glsl"
-#include "/lib/util/dither.glsl"
+#ifdef ATM_COLOR_MULTS
+    #include "/lib/colors/colorMultipliers.glsl"
 #endif
 
-#include "/lib/atmospherics/fog.glsl"
-#endif
+#ifdef COLOR_CODED_PROGRAMS
+    #include "/lib/misc/colorCodedPrograms.glsl"
 #endif
 
 //Program//
 void main() {
-	vec4 albedo = vec4(0.0);
-	vec3 vlAlbedo = vec3(1.0);
+    vec4 color = texture2D(tex, texCoord);
+    vec4 colorP = color;
+    color *= glColor;
 
-	#ifndef SEVEN
-		float textured = 1.0;
-	#else
-		float textured = 0.0;
-	#endif
+    vec3 screenPos = vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z);
+    vec3 viewPos = ScreenToView(screenPos);
+    float lViewPos = length(viewPos);
+    vec3 playerPos = ViewToPlayer(viewPos);
 
-	#ifndef NO_PARTICLES
-		vec4 albedoP = texture2D(texture, texCoord);
-		albedo = albedoP * color;
-		
-		float skymapMod = 0.0;
-		
-		if (albedo.a > 0.0) {
-			vec2 lightmap = clamp(lmCoord, vec2(0.0), vec2(1.0));
+    float dither = texture2DLod(noisetex, gl_FragCoord.xy / 128.0, 0.0).b;
+    #ifdef TAA
+        dither = fract(dither + goldenRatio * mod(float(frameCounter), 3600.0));
+    #endif
 
-			vec3 screenPos = vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z);
-			vec3 viewPos = ScreenToView(screenPos);
-			vec3 worldPos = ViewToWorld(viewPos);
+    #ifdef ATM_COLOR_MULTS
+        atmColorMult = GetAtmColorMult();
+    #endif
 
-			vec3 nViewPos = normalize(viewPos.xyz);
-			float NdotU = dot(nViewPos, upVec);
-			float lViewPos = length(viewPos);
+    #ifdef VL_CLOUDS_ACTIVE
+        float cloudLinearDepth = texelFetch(gaux2, texelCoord, 0).a;
 
-			#ifdef SEVEN
-				textured = float(lViewPos < 10.0); // Fixes the Twilight Forest skybox messing with TAA
-			#endif
+        if (cloudLinearDepth > 0.0) // Because Iris changes the pipeline position of opaque particles
+        if (pow2(cloudLinearDepth + OSIEBCA * dither) * renderDistance < min(lViewPos, renderDistance)) discard;
+    #endif
 
-			float emissive = 0.0;
-			#ifdef COMPBR
-				if (atlasSize.x < 900.0) { // We don't want to detect particles from the block atlas
-					float lAlbedo = length(albedo.rgb);
-					vec3 gamePos = worldPos + cameraPosition;
+    float emission = 0.0, materialMask = OSIEBCA * 254.0; // No SSAO, No TAA, Reduce Reflection
+    vec2 lmCoordM = lmCoord;
+    vec3 normalM = normal, geoNormal = normal, shadowMult = vec3(1.0);
+    vec3 worldGeoNormal = normalize(ViewToPlayer(geoNormal * 10000.0));
+    #if defined IPBR && defined IPBR_PARTICLE_FEATURES
+        // We don't want to detect particles from the block atlas
+        #if MC_VERSION >= 12000
+            float atlasCheck = 1100.0; // I think texture atlas got bigger in newer mc
+        #else
+            float atlasCheck = 900.0;
+        #endif
 
-					if (albedo.b > 1.15 * (albedo.r + albedo.g) && albedo.g > albedo.r * 1.25 && albedo.g < 0.425 && albedo.b > 0.75) // Water Particle
-						albedo.rgb = waterColorSqrt.rgb * 1.1 * lAlbedo;
+        vec2 tSize = textureSize(tex, 0);
+        if (tSize.x < atlasCheck) {
+            if (color.b > 1.15 * (color.r + color.g) && color.g > color.r * 1.25 && color.g < 0.425 && color.b > 0.75) { // Water Particle
+                materialMask = OSIEBCA * 251.0; // No SSAO, Reduce Reflection
+                color.rgb = sqrt3(color.rgb);
+                color.rgb *= 0.7;
+                if (dither > 0.4) discard;
+            #ifdef OVERWORLD
+            } else if (color.b > 0.7 && color.r < 0.28 && color.g < 0.425 && color.g > color.r * 1.4){ // physics mod rain
+                if (color.a < 0.1 || isEyeInWater == 3) discard;
+                color.a *= rainTexOpacity;
+                color.rgb = sqrt2(color.rgb) * (blocklightCol * 2.0 * lmCoord.x + ambientColor * lmCoord.y * (0.7 + 0.35 * sunFactor));
+            } else if (color.rgb == vec3(1.0) && color.a < 0.765 && color.a > 0.605) { // physics mod snow (default snow opacity only)
+                if (color.a < 0.1 || isEyeInWater == 3) discard;
+                color.a *= snowTexOpacity;
+                color.rgb = sqrt2(color.rgb) * (blocklightCol * 2.0 * lmCoord.x + lmCoord.y * (0.7 + 0.35 * sunFactor) + ambientColor * 0.2);
+            #endif
+            } else if (color.r == color.g && color.r - 0.5 * color.b < 0.06) { // Underwater Particle
+                if (isEyeInWater == 1) {
+                    color.rgb = sqrt2(color.rgb) * 0.35;
+                    if (fract(playerPos.y + cameraPosition.y) > 0.25) discard;
+                }
+            } else if (color.a < 0.99 && dot(color.rgb, color.rgb) < 1.0) { // Campfire Smoke
+                color.a *= 0.5;
+                materialMask = OSIEBCA * 251.0; // No SSAO, Reduce Reflection
+            } else if (max(abs(colorP.r - colorP.b), abs(colorP.b - colorP.g)) < 0.001) { // Grayscale Particles
+                float dotColor = dot(color.rgb, color.rgb);
+                if (dotColor > 0.25 && color.g < 0.5 && (color.b > color.r * 1.1 && color.r > 0.3 || color.r > (color.g + color.b) * 3.0)) {
+                    // Ender Particle, Crying Obsidian Particle, Redstone Particle
+                    emission = clamp(color.r * 8.0, 1.6, 5.0);
+                    color.rgb = pow1_5(color.rgb);
+                    lmCoordM = vec2(0.0);
+                } else if (color.r > 0.83 && color.g > 0.23 && color.b < 0.4) {
+                    // Lava Particles
+                    emission = 2.0;
+                    color.b *= 0.5;
+                    color.r *= 1.2;
+                }
+            }
+        }
+        bool noSmoothLighting = false;
+    #else
+        bool noSmoothLighting = true;
+    #endif
 
-					else if (albedo.r == albedo.g && albedo.r - 0.5 * albedo.b < 0.06) { // Underwater Particle
-						if (isEyeInWater == 1) {
-							albedo.rgb = waterColorSqrt.rgb * 1.1 * lAlbedo;
-							if (fract(gamePos.r + gamePos.g + gamePos.b) > 0.2) discard;
-						}
-					}
+    #ifdef REDUCE_CLOSE_PARTICLES
+        if (lViewPos - 1.0 < dither) discard;
+    #endif
 
-					else if (color.a < 0.99 && lAlbedo < 1.0) // Campfire Smoke, World Border
-						albedo.a *= 0.2, textured = 0.0;
+    #ifdef GLOWING_COLORED_PARTICLES
+        if (atlasSize.x < 900.0) {
+            if (dot(glColor.rgb, vec3(1.0)) < 2.99) {
+                emission = 5.0;
+            }
+        }
+    #endif
 
-					else if (max(abs(albedoP.r - albedoP.b), abs(albedoP.b - albedoP.g)) < 0.001) { // Grayscale Particles
-						if (lAlbedo > 0.5 && color.g < 0.5 && color.b > color.r * 1.1 && color.r > 0.3) // Ender Particle, Crying Obsidian Drop
-							emissive = max(pow(albedo.r, 5.0), 0.1);
-						if (lAlbedo > 0.5 && color.g < 0.5 && color.r > (color.g + color.b) * 3.0) // Redstone Particle
-							lightmap = vec2(0.0), emissive = max(pow(albedo.r, 5.0), 0.1);
-					}
-						
-					//albedo.rgb = vec3(1.0, 0.0, 1.0);
-				}
-			#endif
+    DoLighting(color, shadowMult, playerPos, viewPos, lViewPos, geoNormal, normalM, dither,
+               worldGeoNormal, lmCoordM, noSmoothLighting, false, true,
+               false, 0, 0.0, 1.0, emission);
 
-			#if !defined COMPATIBILITY_MODE && MC_VERSION >= 11700
-				if (blendFunc == ivec4(770, 1, 1, 0)) { // World Border
-					albedo.a = albedoP.a * color.a * 0.2;
-					lightmap = vec2(1.0);
-				}
-			#endif
+    #if MC_VERSION >= 11500
+        vec3 nViewPos = normalize(viewPos);
 
-			#ifdef EXTRA_PARTICLE_EMISSION
-				if (atlasSize.x < 900.0) {
-					if (color.r + color.g + color.b < 2.99) {
-						emissive = 1.0;
-					}
-				}
-			#endif
+        float VdotU = dot(nViewPos, upVec);
+        float VdotS = dot(nViewPos, sunVec);
+        float sky = 0.0;
 
-			albedo.rgb = pow(albedo.rgb, vec3(2.2));
+        float prevAlpha = color.a;
+        DoFog(color, sky, lViewPos, playerPos, VdotU, VdotS, dither, false, 0.0);
+        color.a = prevAlpha;
+    #endif
 
-			#ifdef WHITE_WORLD
-				albedo.rgb = vec3(0.5);
-			#endif
+    vec3 translucentMult = mix(vec3(0.666), color.rgb * (1.0 - pow2(pow2(color.a))), color.a);
 
-			float NdotL = 1.0;
-			NdotL = clamp(dot(normal, lightVec) * 1.01 - 0.01, 0.0, 1.0);
+    #ifdef COLOR_CODED_PROGRAMS
+        ColorCodeProgram(color, -1);
+    #endif
 
-			float quarterNdotU = clamp(0.25 * dot(normal, upVec) + 0.75, 0.5, 1.0);
-				quarterNdotU*= quarterNdotU;
-			
-			vec3 shadow = vec3(0.0);
-			vec3 lightAlbedo = vec3(0.0);
-			GetLighting(albedo.rgb, shadow, lightAlbedo, viewPos, lViewPos, worldPos, lightmap, 1.0, NdotL, 1.0,
-							1.0, emissive, 0.0, 0.0, 1.0);
-
-			#ifndef COMPATIBILITY_MODE
-				albedo.rgb *= 2.0;
-			#endif
-
-			#ifdef PARTICLE_VISIBILITY
-				if (lViewPos < 2.0) albedo.a *= smoothstep(0.7, 2.0, lViewPos) + 0.0002;
-			#endif
-
-			#if MC_VERSION >= 11500
-				vlAlbedo = mix(vec3(1.0), albedo.rgb, sqrt1(albedo.a)) * (1.0 - pow(albedo.a, 64.0));
-				
-				if (atlasSize.x > 5.0) { // No Fog On Journey Map Waypoints
-					vec3 extra = vec3(0.0);
-					#if defined NETHER && defined NETHER_SMOKE
-						float dither = Bayer64(gl_FragCoord.xy);
-						extra = DrawNetherSmoke(viewPos.xyz, dither, pow((netherCol * 2.5) / NETHER_I, vec3(2.2)) * 4);
-					#endif
-					#if defined END && defined ENDER_NEBULA
-						float dither = Bayer64(gl_FragCoord.xy);
-						vec3 nebulaStars = vec3(0.0);
-						vec3 enderNebula = DrawEnderNebula(viewPos.xyz, dither, endCol, nebulaStars);
-						enderNebula = pow(enderNebula, vec3(1.0 / 2.2));
-						enderNebula *= pow(enderNebula, vec3(2.2));
-						extra = enderNebula;
-					#endif
-					albedo.rgb = startFog(albedo.rgb, nViewPos, lViewPos, worldPos, extra, NdotU);
-				}
-			#endif
-		} else discard;
-	#endif
-
-	#if defined TWO && !defined PARTICLE_VISIBILITY
-		albedo.a = 1.0;
-	#endif
-
-	#ifdef GBUFFER_CODING
-		albedo.rgb = vec3(255.0, 170.0, 0.0) / 255.0;
-		albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.2;
-	#endif
-	
-    /* DRAWBUFFERS:017 */
-    gl_FragData[0] = albedo;
-	gl_FragData[1] = vec4(vlAlbedo, 1.0);
-	gl_FragData[2] = vec4(textured, 1.0, 1.0, 1.0);
-
-	#if defined ADV_MAT && defined REFLECTION_SPECULAR && MC_VERSION < 11500
-	/* DRAWBUFFERS:01736 */
-	gl_FragData[3] = vec4(0.0, 0.0, 0.0, 1.0);
-	gl_FragData[4] = vec4(0.0, 0.0, 0.0, 1.0);
-	#endif
+    /* DRAWBUFFERS:063 */
+    gl_FragData[0] = color;
+    gl_FragData[1] = vec4(0.0, materialMask, 0.0, 1.0);
+    gl_FragData[2] = vec4(1.0 - translucentMult, 1.0);
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
 
-#ifndef NO_PARTICLES
+out vec2 texCoord;
+out vec2 lmCoord;
 
-//Uniforms//
+flat out vec3 upVec, sunVec, northVec, eastVec;
+out vec3 normal;
 
-uniform float frameTimeCounter;
-
-uniform vec3 cameraPosition;
-
-uniform mat4 gbufferModelView, gbufferModelViewInverse;
+flat out vec4 glColor;
 
 //Attributes//
-attribute vec4 mc_Entity;
-attribute vec4 mc_midTexCoord;
 
 //Common Variables//
-#if WORLD_TIME_ANIMATION >= 2
-	float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
-#else
-	float frametime = frameTimeCounter * ANIMATION_SPEED;
-#endif
-
-#ifdef OVERWORLD
-	float timeAngleM = timeAngle;
-#else
-	#if !defined SEVEN && !defined SEVEN_2
-		float timeAngleM = 0.25;
-	#else
-		float timeAngleM = 0.5;
-	#endif
-#endif
 
 //Common Functions//
 
 //Includes//
-#ifdef WORLD_CURVATURE
-	#include "/lib/vertex/worldCurvature.glsl"
-#endif
-
-#endif
 
 //Program//
 void main() {
-	#ifndef NO_PARTICLES
-		texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
-		
-		lmCoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
-		lmCoord = clamp((lmCoord - 0.03125) * 1.06667, 0.0, 1.0);
+    gl_Position = ftransform();
 
-		normal = normalize(gl_NormalMatrix * gl_Normal);
-		
-		color = gl_Color;
+    texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
+    lmCoord  = GetLightMapCoordinates();
 
-		const vec2 sunRotationData = vec2(cos(sunPathRotation * 0.01745329251994), -sin(sunPathRotation * 0.01745329251994));
-		float ang = fract(timeAngleM - 0.25);
-		ang = (ang + (cos(ang * 3.14159265358979) * -0.5 + 0.5 - ang) / 3.0) * 6.28318530717959;
-		sunVec = normalize((gbufferModelView * vec4(vec3(-sin(ang), cos(ang) * sunRotationData) * 2000.0, 1.0)).xyz);
+    glColor = gl_Color;
 
-		upVec = normalize(gbufferModelView[1].xyz);
+    normal = normalize(gl_NormalMatrix * gl_Normal);
+    upVec = normalize(gbufferModelView[1].xyz);
+    eastVec = normalize(gbufferModelView[0].xyz);
+    northVec = normalize(gbufferModelView[2].xyz);
+    sunVec = GetSunVector();
 
-		#ifdef WORLD_CURVATURE
-			vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
-			position.y -= WorldCurvature(position.xz);
-			gl_Position = gl_ProjectionMatrix * gbufferModelView * position;
-		#else
-			gl_Position = ftransform();
-		#endif
-
-		#ifdef COMPBR
-			if (mc_Entity.x == 12101) // Tripwire
-				lmCoord.x *= 0.9;
-		#endif
-
-		#ifdef FLICKERING_FIX
-			gl_Position.z -= 0.000002;
-		#endif
-
-	#else
-		gl_Position = vec4(0.0);
-	#endif
+    #ifdef FLICKERING_FIX
+        gl_Position.z -= 0.000002;
+    #endif
 }
 
 #endif

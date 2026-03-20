@@ -1,53 +1,61 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+/////////////////////////////////////
+// Complementary Shaders by EminGT //
+/////////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-varying vec2 texCoord;
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-uniform float viewWidth, viewHeight;
+noperspective in vec2 texCoord;
 
-uniform sampler2D colortex1;
+//Pipeline Constants//
+
+//Common Variables//
 
 //Common Functions//
-float GetLuminance(vec3 color) {
-	return dot(color, vec3(0.299, 0.587, 0.114));
+float GetLinearDepth(float depth) {
+    return (2.0 * near) / (far + near - depth * (far - near));
 }
 
 //Includes//
-#if AA == 1 || AA == 3
-#include "/lib/antialiasing/fxaa.glsl"
+#if FXAA_DEFINE == 1 && FXAA_STRENGTH > 1
+    #include "/lib/antialiasing/fxaa.glsl"
 #endif
 
 //Program//
 void main() {
-    vec3 color = texture2D(colortex1, texCoord).rgb;
-
-    #if AA == 1 || AA == 3
+    vec3 color = texelFetch(colortex3, texelCoord, 0).rgb;
+        
+    #if FXAA_DEFINE == 1 && FXAA_STRENGTH > 1
         FXAA311(color);
     #endif
 
-    /*DRAWBUFFERS:1*/
-	gl_FragData[0] = vec4(color, 1.0);
+    /* DRAWBUFFERS:3 */
+    gl_FragData[0] = vec4(color, 1.0);
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
+
+noperspective out vec2 texCoord;
+
+//Attributes//
+
+//Common Variables//
+
+//Common Functions//
+
+//Includes//
 
 //Program//
 void main() {
-	texCoord = gl_MultiTexCoord0.xy;
-	
-	gl_Position = ftransform();
+    gl_Position = ftransform();
+
+    texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 }
 
 #endif

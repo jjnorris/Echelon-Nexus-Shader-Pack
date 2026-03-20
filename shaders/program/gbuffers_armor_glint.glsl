@@ -1,89 +1,73 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+//////////////////////////////////
+// Complementary Base by EminGT //
+//////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-varying vec2 texCoord;
-
-varying vec4 color;
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-uniform sampler2D texture;
+in vec2 texCoord;
+
+flat in vec4 glColor;
+
+//Pipeline Constants//
+
+//Common Variables//
+
+//Common Functions//
+
+//Includes//
+#ifdef COLOR_CODED_PROGRAMS
+    #include "/lib/misc/colorCodedPrograms.glsl"
+#endif
 
 //Program//
 void main() {
-	vec4 albedo = texture2D(texture, texCoord.xy) * color;
-	
-	#if MC_VERSION >= 11500
-		albedo.rgb = pow(albedo.rgb,vec3(1.6));
-		albedo.rgb *= 0.25;
-	#else
-		albedo.rgb = pow(albedo.rgb,vec3(2.2));
-	#endif
+    vec4 color = texture2D(tex, texCoord);
+    color *= glColor;
 
-	#ifdef GBUFFER_CODING
-		albedo.rgb = vec3(255.0, 85.0, 255.0) / 255.0;
-		albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 1.0;
-	#endif
+    color.rgb *= glColor.a; // Needed for Minecraft's "Glint Strength" apparently
 
-	albedo.rgb *= GLINT_BRIGHTNESS;
-	
+    #ifdef COLOR_CODED_PROGRAMS
+        ColorCodeProgram(color, -1);
+    #endif
+
     /* DRAWBUFFERS:0 */
-	gl_FragData[0] = albedo;
+    gl_FragData[0] = color;
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
 
-//Uniforms//
+out vec2 texCoord;
 
-uniform float frameTimeCounter;
+flat out vec4 glColor;
 
-#ifdef WORLD_CURVATURE
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-#endif
+//Attributes//
 
 //Common Variables//
-#if WORLD_TIME_ANIMATION >= 2
-	float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
-#else
-	float frametime = frameTimeCounter * ANIMATION_SPEED;
-#endif
+
+//Common Functions//
 
 //Includes//
-#ifdef WORLD_CURVATURE
-	#include "/lib/vertex/worldCurvature.glsl"
-#endif
 
 //Program//
-void main(){
-	texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
+void main() {
+    gl_Position = ftransform();
 
-	color = gl_Color;
+    texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 
-	#ifdef WORLD_CURVATURE
-		vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
-		if (gl_ProjectionMatrix[2][2] < -0.5) position.y -= WorldCurvature(position.xz);
-		gl_Position = gl_ProjectionMatrix * gbufferModelView * position;
-	#else
-		gl_Position = ftransform();
-	#endif
+    glColor = gl_Color;
 
-	if (HAND_SWAY > 0.001) {
-		if (gl_ProjectionMatrix[2][2] > -0.5) {
-		gl_Position.x += HAND_SWAY * (sin(frametime * 0.86)) / 256.0;
-		gl_Position.y += HAND_SWAY * (cos(frametime * 1.5)) / 64.0;
-		}
-	}
+    #if HAND_SWAYING > 0
+        if (gl_ProjectionMatrix[2][2] > -0.5) {
+            #include "/lib/misc/handSway.glsl"
+        }
+    #endif
 }
 
 #endif

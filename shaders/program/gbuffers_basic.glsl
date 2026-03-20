@@ -1,292 +1,178 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+//////////////////////////////////
+// Complementary Base by EminGT //
+//////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-varying vec2 texCoord, lmCoord;
-
-varying vec3 normal;
-varying vec3 sunVec, upVec;
-
-varying vec4 color;
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-uniform int frameCounter;
-uniform int isEyeInWater;
+flat in vec2 lmCoord;
 
-#ifdef DYNAMIC_SHADER_LIGHT
-	uniform int heldItemId, heldItemId2;
+flat in vec3 upVec, sunVec, northVec, eastVec;
+in vec3 normal;
 
-	uniform int heldBlockLightValue;
-	uniform int heldBlockLightValue2;
-#endif
+flat in vec4 glColor;
 
-uniform float frameTimeCounter;
-uniform float nightVision;
-uniform float rainStrengthS;
-uniform float screenBrightness; 
-uniform float viewWidth, viewHeight;
-
-uniform ivec2 eyeBrightnessSmooth;
-
-uniform vec3 fogColor;
-uniform vec3 cameraPosition;
-
-uniform mat4 gbufferProjectionInverse;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 shadowProjection;
-uniform mat4 shadowModelView;
-
-#if ((defined WATER_CAUSTICS || defined CLOUD_SHADOW) && defined OVERWORLD) || defined RANDOM_BLOCKLIGHT
-	uniform sampler2D noisetex;
-#endif
-
-#ifdef COLORED_LIGHT
-	uniform sampler2D colortex9;
-#endif
-
-#if MC_VERSION >= 11700
-	uniform int renderStage;
-#endif
-
-#if MC_VERSION >= 11900
-	uniform float darknessLightFactor;
-#endif
+//Pipeline Constants//
 
 //Common Variables//
-float eBS = eyeBrightnessSmooth.y / 240.0;
-float sunVisibility = clamp(dot( sunVec,upVec) + 0.0625, 0.0, 0.125) * 8.0;
-float vsBrightness = clamp(screenBrightness, 0.0, 1.0);
-
-#if WORLD_TIME_ANIMATION >= 2
-	float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
-#else
-	float frametime = frameTimeCounter * ANIMATION_SPEED;
-#endif
+float NdotU = dot(normal, upVec);
+float NdotUmax0 = max(NdotU, 0.0);
+float SdotU = dot(sunVec, upVec);
+float sunFactor = SdotU < 0.0 ? clamp(SdotU + 0.375, 0.0, 0.75) / 0.75 : clamp(SdotU + 0.03125, 0.0, 0.0625) / 0.0625;
+float sunVisibility = clamp(SdotU + 0.0625, 0.0, 0.125) / 0.125;
+float sunVisibility2 = sunVisibility * sunVisibility;
+float shadowTimeVar1 = abs(sunVisibility - 0.5) * 2.0;
+float shadowTimeVar2 = shadowTimeVar1 * shadowTimeVar1;
+float shadowTime = shadowTimeVar2 * shadowTimeVar2;
 
 #ifdef OVERWORLD
-	vec3 lightVec = sunVec * ((timeAngle < 0.5325 || timeAngle > 0.9675) ? 1.0 : -1.0);
+    vec3 lightVec = sunVec * ((timeAngle < 0.5325 || timeAngle > 0.9675) ? 1.0 : -1.0);
 #else
-	vec3 lightVec = sunVec;
+    vec3 lightVec = sunVec;
 #endif
 
 //Common Functions//
-float GetLuminance(vec3 color) {
-	return dot(color,vec3(0.299, 0.587, 0.114));
-}
- 
+
 //Includes//
-#include "/lib/color/blocklightColor.glsl"
-#include "/lib/color/dimensionColor.glsl"
 #include "/lib/util/spaceConversion.glsl"
+#include "/lib/lighting/mainLighting.glsl"
 
-#if defined WATER_CAUSTICS && defined OVERWORLD
-	#include "/lib/color/waterColor.glsl"
+#ifdef TAA
+    #include "/lib/antialiasing/jitter.glsl"
 #endif
 
-#include "/lib/lighting/forwardLighting.glsl"
-
-#if SELECTION_MODE == 1
-	#include "/lib/color/selectionColor.glsl"
-#endif
-
-#if AA == 2 || AA == 3
-	#include "/lib/util/jitter.glsl"
-#endif
-#if AA == 4
-	#include "/lib/util/jitter2.glsl"
+#ifdef COLOR_CODED_PROGRAMS
+    #include "/lib/misc/colorCodedPrograms.glsl"
 #endif
 
 //Program//
 void main() {
-    vec4 albedo = color;
+    vec4 color = glColor;
 
-	float skymapMod = 0.0;
-	
-	#ifndef COMPATIBILITY_MODE
-		float albedocheck = albedo.a;
-	#else
-		float albedocheck = 1.0;
-	#endif
+    vec3 screenPos = vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z);
+    #ifdef TAA
+        vec3 viewPos = ScreenToView(vec3(TAAJitter(screenPos.xy, -0.5), screenPos.z));
+    #else
+        vec3 viewPos = ScreenToView(screenPos);
+    #endif
+    float lViewPos = length(viewPos);
+    vec3 playerPos = ViewToPlayer(viewPos);
 
-	if (albedocheck > 0.00001) {	
-		vec2 lightmap = clamp(lmCoord, vec2(0.0), vec2(1.0));
+    float materialMask = 0.0;
+    vec3 normalM = normal, geoNormal = normal, shadowMult = vec3(1.0);
+    vec3 worldGeoNormal = normalize(ViewToPlayer(geoNormal * 10000.0));
 
-		vec3 screenPos = vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z);
-		#if AA > 1
-			vec3 viewPos = ScreenToView(vec3(TAAJitter(screenPos.xy, -0.5), screenPos.z));
-		#else
-			vec3 viewPos = ScreenToView(screenPos);
-		#endif
-		vec3 worldPos = ViewToWorld(viewPos);
-		float lViewPos = length(viewPos.xyz);
+    #ifndef GBUFFERS_LINE
+        DoLighting(color, shadowMult, playerPos, viewPos, lViewPos, geoNormal, normalM, 0.5,
+                   worldGeoNormal, lmCoord, false, false, false,
+                   false, 0, 0.0, 0.0, 0.0);
+    #endif
 
-    	albedo.rgb = pow(albedo.rgb, vec3(2.2));
-		albedo.a = albedo.a * 0.5 + 0.5;
+    #if SELECT_OUTLINE != 1 || defined SELECT_OUTLINE_AUTO_HIDE
+    if (abs(color.a - 0.4) + dot(color.rgb, color.rgb) < 0.01) {
+        #if SELECT_OUTLINE == 0
+            discard;
+        #elif SELECT_OUTLINE == 2 // Rainbow
+            float posFactor = playerPos.x + playerPos.y + playerPos.z + cameraPosition.x + cameraPosition.y + cameraPosition.z;
+            color.rgb = clamp(abs(mod(fract(frameTimeCounter*0.25 + posFactor*0.2) * 6.0 + vec3(0.0,4.0,2.0), 6.0) - 3.0) - 1.0,
+                        0.0, 1.0) * vec3(3.0, 2.0, 3.0) * SELECT_OUTLINE_I;
+        #elif SELECT_OUTLINE == 3 // Select Color
+            color.rgb = vec3(SELECT_OUTLINE_R, SELECT_OUTLINE_G, SELECT_OUTLINE_B) * SELECT_OUTLINE_I;
+        #elif SELECT_OUTLINE == 4 // Versatile
+            color.a = 0.1;
+            materialMask = OSIEBCA * 252.0; // Versatile Selection Outline
+        #endif
 
-		#ifdef WHITE_WORLD
-			if (albedo.a > 0.9) albedo.rgb = vec3(0.5);
-		#endif
+        #ifdef SELECT_OUTLINE_AUTO_HIDE
+            if (heldItemId == 40008 && (
+                heldItemId2 == 40008 ||
+                heldItemId2 == 45060 ||
+                heldItemId2 == 45108 ||
+                heldItemId2 >= 44000 &&
+                heldItemId2 < 45000)) {
+                // Both hands hold nothing or only a light/totem/shield in off-hand
+                discard;
+            }
+        #endif
+    }
+    #endif
 
-		float NdotL = clamp(dot(normal, lightVec) * 1.01 - 0.01, 0.0, 1.0);
+    #ifdef COLOR_CODED_PROGRAMS
+        ColorCodeProgram(color, -1);
+    #endif
 
-		float quarterNdotU = clamp(0.25 * dot(normal, upVec) + 0.75, 0.5, 1.0);
-			  quarterNdotU*= quarterNdotU;
-		
-		vec3 shadow = vec3(0.0);
-		vec3 lightAlbedo = vec3(0.0);
-		GetLighting(albedo.rgb, shadow, lightAlbedo, viewPos, lViewPos, worldPos, lightmap, 1.0, NdotL, quarterNdotU,
-				    1.0, 0.0, 0.0, 0.0, 1.0);
+    #if COLORED_LIGHTING_INTERNAL > 0 && defined NETHER
+        if (gl_FragCoord.x < 0.0)
+        color = shadow2D(shadowtex0, vec3(0.5)); // To Activate Shadowmap in Nether
+    #endif
 
-		#if MC_VERSION >= 11700
-		if (renderStage == 14) {
-		#else
-		if (albedo.rgb == vec3(0.0) && albedo.a > 0.5) {
-		#endif
-			albedo.a = 1.0;	
-			#if SELECTION_MODE == 1 // Select Color
-				albedo.rgb = selectionCol;
-			#endif
-			#if SELECTION_MODE == 2 // Versatile
-				albedo.a = 0.1;
-				skymapMod = 0.995;
-			#endif
-			#if SELECTION_MODE == 4 // Rainbow
-				float posFactor = worldPos.x + worldPos.y + worldPos.z + cameraPosition.x + cameraPosition.y + cameraPosition.z;
-				albedo.rgb = clamp(abs(mod(fract(frameTimeCounter*0.25 + posFactor*0.1) * 6.0 + vec3(0.0,4.0,2.0), 6.0) - 3.0)-1.0,
-							0.0, 1.0);
-				albedo.rgb = pow(albedo.rgb, vec3(2.2)) * SELECTION_I * SELECTION_I * 0.5;
-			#endif
-			#if SELECTION_MODE == 3 // Disabled
-				albedo.a = 0.0;
-				discard;
-			#endif
-		}
-	} else discard;
-
-	#ifdef GBUFFER_CODING
-		albedo.rgb = vec3(85.0, 255.0, 85.0) / 255.0;
-		albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.5;
-	#endif
-
-    /* DRAWBUFFERS:0 */
-    gl_FragData[0] = albedo;
-
-	#if (defined ADV_MAT && defined REFLECTION_SPECULAR) || SELECTION_MODE == 2
-		/* DRAWBUFFERS:0361 */
-		gl_FragData[1] = vec4(0.0, 0.0, skymapMod, 1.0);
-		gl_FragData[2] = vec4(0.0, 0.0, float(gl_FragCoord.z < 1.0), 1.0);
-		gl_FragData[3] = vec4(0.0, 0.0, 0.0, 1.0);
-	#endif
+    /* DRAWBUFFERS:06 */
+    gl_FragData[0] = color;
+    gl_FragData[1] = vec4(0.0, materialMask, 0.0, 1.0);
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
 
-//Uniforms//
-uniform float frameTimeCounter;
-uniform float viewWidth, viewHeight;
+flat out vec2 lmCoord;
 
-uniform vec3 cameraPosition;
+flat out vec3 upVec, sunVec, northVec, eastVec;
+out vec3 normal;
 
-uniform mat4 gbufferModelView, gbufferModelViewInverse;
-
-#if AA > 1
-	uniform int frameCounter;
-#endif
-
-#if MC_VERSION >= 11700
-	uniform int renderStage;
-#endif
+flat out vec4 glColor;
 
 //Attributes//
-attribute vec4 mc_Entity;
-attribute vec4 mc_midTexCoord;
 
 //Common Variables//
-#if WORLD_TIME_ANIMATION >= 2
-	float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
-#else
-	float frametime = frameTimeCounter * ANIMATION_SPEED;
-#endif
 
-#ifdef OVERWORLD
-	float timeAngleM = timeAngle;
-#else
-	#if !defined SEVEN && !defined SEVEN_2
-		float timeAngleM = 0.25;
-	#else
-		float timeAngleM = 0.5;
-	#endif
-#endif
+//Common Functions//
 
 //Includes//
-#if AA == 2 || AA == 3
-	#include "/lib/util/jitter.glsl"
-#endif
-#if AA == 4
-	#include "/lib/util/jitter2.glsl"
-#endif
-
-#ifdef WORLD_CURVATURE
-	#include "/lib/vertex/worldCurvature.glsl"
+#ifdef TAA
+    #include "/lib/antialiasing/jitter.glsl"
 #endif
 
 //Program//
 void main() {
-	texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
-    
-	lmCoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
-	lmCoord = clamp((lmCoord - 0.03125) * 1.06667, 0.0, 1.0);
+    #ifndef GBUFFERS_LINE
+        gl_Position = ftransform();
+    #else
+        float lineWidth = 2.0;
+        vec2 screenSize = vec2(viewWidth, viewHeight);
+        const mat4 VIEW_SCALE = mat4(mat3(1.0 - (1.0 / 256.0)));
+        vec4 linePosStart = projectionMatrix * VIEW_SCALE * modelViewMatrix * vec4(vaPosition, 1.0);
+        vec4 linePosEnd = projectionMatrix * VIEW_SCALE * modelViewMatrix * (vec4(vaPosition + vaNormal, 1.0));
+        vec3 ndc1 = linePosStart.xyz / linePosStart.w;
+        vec3 ndc2 = linePosEnd.xyz / linePosEnd.w;
+        vec2 lineScreenDirection = normalize((ndc2.xy - ndc1.xy) * screenSize);
+        vec2 lineOffset = vec2(-lineScreenDirection.y, lineScreenDirection.x) * lineWidth / screenSize;
+        if (lineOffset.x < 0.0)
+            lineOffset *= -1.0;
+        if (gl_VertexID % 2 == 0)
+            gl_Position = vec4((ndc1 + vec3(lineOffset, 0.0)) * linePosStart.w, linePosStart.w);
+        else
+            gl_Position = vec4((ndc1 - vec3(lineOffset, 0.0)) * linePosStart.w, linePosStart.w);
+    #endif
 
-	normal = normalize(gl_NormalMatrix * gl_Normal);
-    
-	color = gl_Color;
+    #ifdef TAA
+        gl_Position.xy = TAAJitter(gl_Position.xy, gl_Position.w);
+    #endif
 
-	const vec2 sunRotationData = vec2(cos(sunPathRotation * 0.01745329251994), -sin(sunPathRotation * 0.01745329251994));
-	float ang = fract(timeAngleM - 0.25);
-	ang = (ang + (cos(ang * 3.14159265358979) * -0.5 + 0.5 - ang) / 3.0) * 6.28318530717959;
-	sunVec = normalize((gbufferModelView * vec4(vec3(-sin(ang), cos(ang) * sunRotationData) * 2000.0, 1.0)).xyz);
+    lmCoord  = GetLightMapCoordinates();
 
-	upVec = normalize(gbufferModelView[1].xyz);
+    glColor = gl_Color;
 
-	#ifndef GBUFFERS_LINE
-		#ifdef WORLD_CURVATURE
-			vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
-			position.y -= WorldCurvature(position.xz);
-			gl_Position = gl_ProjectionMatrix * gbufferModelView * position;
-		#else
-			gl_Position = ftransform();
-		#endif
-	#else
-		float lineWidth = 2.0;
-		vec2 screenSize = vec2(viewWidth, viewHeight);
-		const mat4 VIEW_SCALE = mat4(mat3(1.0 - (1.0 / 256.0)));
-		vec4 linePosStart = projectionMatrix * VIEW_SCALE * modelViewMatrix * vec4(vaPosition, 1.0);
-		vec4 linePosEnd = projectionMatrix * VIEW_SCALE * modelViewMatrix * (vec4(vaPosition + vaNormal, 1.0));
-		vec3 ndc1 = linePosStart.xyz / linePosStart.w;
-		vec3 ndc2 = linePosEnd.xyz / linePosEnd.w;
-		vec2 lineScreenDirection = normalize((ndc2.xy - ndc1.xy) * screenSize);
-		vec2 lineOffset = vec2(-lineScreenDirection.y, lineScreenDirection.x) * lineWidth / screenSize;
-		if (lineOffset.x < 0.0)
-			lineOffset *= -1.0;
-		if (gl_VertexID % 2 == 0)
-			gl_Position = vec4((ndc1 + vec3(lineOffset, 0.0)) * linePosStart.w, linePosStart.w);
-		else
-			gl_Position = vec4((ndc1 - vec3(lineOffset, 0.0)) * linePosStart.w, linePosStart.w);
-	#endif
-	
-	#if AA > 1
-		gl_Position.xy = TAAJitter(gl_Position.xy, gl_Position.w);
-	#endif
+    normal = normalize(gl_NormalMatrix * gl_Normal);
+
+    upVec = normalize(gbufferModelView[1].xyz);
+    eastVec = normalize(gbufferModelView[0].xyz);
+    northVec = normalize(gbufferModelView[2].xyz);
+    sunVec = GetSunVector();
 }
 
 #endif

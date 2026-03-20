@@ -1,91 +1,47 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+/////////////////////////////////////
+// Complementary Shaders by EminGT //
+/////////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-varying vec2 texCoord;
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-uniform float viewWidth, viewHeight, aspectRatio;
+//Pipeline Constants//
 
-uniform vec3 cameraPosition, previousCameraPosition;
-
-uniform mat4 gbufferPreviousProjection, gbufferProjectionInverse;
-uniform mat4 gbufferModelView, gbufferPreviousModelView, gbufferModelViewInverse;
-
-uniform sampler2D colortex0;
-uniform sampler2D depthtex1;
+//Common Variables//
 
 //Common Functions//
-vec3 MotionBlur(vec3 color, float z, float dither) {
-	if (z > 0.56) {
-		float mbwg = 0.0;
-		vec2 doublePixel = 2.0 / vec2(viewWidth, viewHeight);
-		vec3 mblur = vec3(0.0);
-		
-		vec4 currentPosition = vec4(texCoord, z, 1.0) * 2.0 - 1.0;
-		
-		vec4 viewPos = gbufferProjectionInverse * currentPosition;
-		viewPos = gbufferModelViewInverse * viewPos;
-		viewPos /= viewPos.w;
-		
-		vec3 cameraOffset = cameraPosition - previousCameraPosition;
-		
-		vec4 previousPosition = viewPos + vec4(cameraOffset, 0.0);
-		previousPosition = gbufferPreviousModelView * previousPosition;
-		previousPosition = gbufferPreviousProjection * previousPosition;
-		previousPosition /= previousPosition.w;
-
-		vec2 velocity = (currentPosition - previousPosition).xy;
-		velocity = velocity / (1.0 + length(velocity)) * MOTION_BLUR_STRENGTH * 0.02;
-		
-		vec2 coord = texCoord - velocity * (3.5 + dither);
-		for (int i = 0; i < 9; i++, coord += velocity) {
-			vec2 coordb = clamp(coord, doublePixel, 1.0 - doublePixel);
-			mblur += texture2DLod(colortex0, coordb, 0).rgb;
-			mbwg += 1.0;
-		}
-		mblur /= mbwg;
-
-		return mblur;
-	} else return color;
-}
-
 
 //Includes//
-#include "/lib/util/dither.glsl"
 
 //Program//
 void main() {
-    vec3 color = texture2D(colortex0,texCoord).rgb;
-	
-	#ifdef MOTION_BLUR
-		float z = texture2D(depthtex1, texCoord).x;
-		float dither = Bayer64(gl_FragCoord.xy);
+    vec3 color = texelFetch(colortex0, texelCoord, 0).rgb;
 
-		color = MotionBlur(color, z, dither);
-	#endif
-	
-	/*DRAWBUFFERS:0*/
-	gl_FragData[0] = vec4(color,1.0);
+    composite2 has been reserved for future use. This file is currently completely unused
+
+    /* DRAWBUFFERS:0 */
+    gl_FragData[0] = vec4(color, 1.0);
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
+
+//Attributes//
+
+//Common Variables//
+
+//Common Functions//
+
+//Includes//
 
 //Program//
 void main() {
-	texCoord = gl_MultiTexCoord0.xy;
-	
-	gl_Position = ftransform();
+    gl_Position = ftransform();
 }
 
 #endif

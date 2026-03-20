@@ -1,188 +1,157 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+/////////////////////////////////////
+// Complementary Shaders by EminGT //
+/////////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-#if defined END || (defined OVERWORLD && defined VANILLA_SKYBOX)
-varying vec2 texCoord;
-
-varying vec4 color;
-#endif
-
-#if defined OVERWORLD && defined VANILLA_SKYBOX
-varying vec3 upVec, sunVec;
-#endif
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-uniform float isEyeInCave;
-uniform float screenBrightness;
+in vec2 texCoord;
 
-uniform vec3 skyColor;
-uniform vec3 fogColor;
+flat in vec4 glColor;
 
-uniform sampler2D texture;
-
-#if defined OVERWORLD && defined VANILLA_SKYBOX
-	uniform int worldDay;
-
-	uniform float nightVision;
-	uniform float rainStrengthS;
-	uniform float viewWidth, viewHeight;
-	uniform float eyeAltitude;
-
-	uniform ivec2 eyeBrightnessSmooth;
-
-	uniform mat4 gbufferProjectionInverse;
+#ifdef OVERWORLD
+    flat in vec3 upVec, sunVec;
 #endif
 
-#ifdef END
-	uniform float frameTimeCounter;
-
-	uniform vec3 cameraPosition;
-
-	uniform mat4 gbufferModelViewInverse;
-
-	uniform sampler2D noisetex;
-#endif
-
-#if MC_VERSION >= 11700 && defined OVERWORLD && defined VANILLA_SKYBOX && defined SUN_MOON_HORIZON
-	uniform int renderStage;
-#endif
+//Pipeline Constants//
 
 //Common Variables//
-float vsBrightness = clamp(screenBrightness, 0.0, 1.0);
-
-#if defined OVERWORLD && defined VANILLA_SKYBOX
-	float eBS = eyeBrightnessSmooth.y / 240.0;
-	float sunVisibility = clamp(dot( sunVec,upVec) + 0.0625, 0.0, 0.125) * 8.0;
+#ifdef OVERWORLD
+    float SdotU = dot(sunVec, upVec);
+    float sunVisibility = clamp(SdotU + 0.0625, 0.0, 0.125) / 0.125;
+    float sunVisibility2 = sunVisibility * sunVisibility;
 #endif
 
 //Common Functions//
 
 //Includes//
-#if defined OVERWORLD && defined VANILLA_SKYBOX
-	#include "/lib/color/lightColor.glsl"
+#include "/lib/colors/lightAndAmbientColors.glsl"
+
+#ifdef CAVE_FOG
+    #include "/lib/atmospherics/fog/caveFactor.glsl"
 #endif
-#ifdef END
-	#include "/lib/color/endColor.glsl"
+
+#ifdef COLOR_CODED_PROGRAMS
+    #include "/lib/misc/colorCodedPrograms.glsl"
 #endif
 
 //Program//
 void main() {
-	#if defined OVERWORLD && defined VANILLA_SKYBOX
-		vec4 albedo = texture2D(texture, texCoord.xy);
-		
-		vec4 screenPos = vec4(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z, 1.0);
-		vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
-		viewPos /= viewPos.w;
-		vec3 nViewPos = normalize(viewPos.xyz);
+    #ifdef OVERWORLD
+        vec2 tSize = textureSize(tex, 0);
+        vec4 color = texture2D(tex, texCoord);
+        color.rgb *= glColor.rgb;
 
-		#ifdef SUN_MOON_HORIZON
-			float NdotU = dot(nViewPos, upVec);
+        vec4 screenPos = vec4(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z, 1.0);
+        vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
+        viewPos /= viewPos.w;
+        vec3 nViewPos = normalize(viewPos.xyz);
 
-			#if MC_VERSION >= 11700
-				if (renderStage > 3)
-			#endif
-			albedo.a *= clamp((NdotU+0.02)*10, 0.0, 1.0);
-		#endif
-		
-		albedo *= color;
-		albedo.rgb = pow(albedo.rgb, vec3(2.2 + sunVisibility * 2.2)) * (1.0 + sunVisibility * 4.0) * SKYBOX_BRIGHTNESS * albedo.a;
-	#else
-		vec4 albedo = vec4(0.0);
-	#endif
+        float VdotS = dot(nViewPos, sunVec);
+        float VdotU = dot(nViewPos, upVec);
+        bool sunSideCheck = VdotS > 0.0;
 
-	#ifdef END
-		albedo = vec4(endCol * (0.035 + 0.02 * vsBrightness), 1.0);
-	#endif
+        #ifdef IS_IRIS
+            bool isSun = renderStage == MC_RENDER_STAGE_SUN;
+            bool isMoon = renderStage == MC_RENDER_STAGE_MOON;
+            #if IRIS_VERSION < 10902
+                if (sunSideCheck) isSun = true; // Workaround for sun rendering as MC_RENDER_STAGE_MOON in some Iris versions
+            #endif
+        #else
+            bool tSizeCheck = abs(tSize.y - 264.0) < 248.5; //tSize.y must range from 16 to 512
+            bool isSun = tSizeCheck && sunSideCheck;
+            bool isMoon = tSizeCheck && !sunSideCheck;
+        #endif
 
-	#ifdef TWO
-		albedo = vec4(0.0, 0.0, 0.0, 1.0);
-	#endif
+        if (isSun || isMoon) {
+            #if SUN_MOON_STYLE >= 2
+                discard;
+            #endif
 
-	#ifdef GBUFFER_CODING
-		albedo.rgb = vec3(255.0, 255.0, 85.0) / 255.0;
-		albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.5;
-	#endif
-	
-	#if defined CAVE_SKY_FIX && defined OVERWORLD
-		albedo.rgb *= 1.0 - isEyeInCave;
-	#endif
-	
+            if (isSun) {
+                color.rgb = vec3(pow(dot(color.rgb, color.rgb) * 0.45, 6.0 - 5.0 * rainFactor));
+                color.rgb *= mix(vec3(1.1, 0.55, 0.0), vec3(0.35), rainFactor * 0.75) * 4.5;
+                color.rgb *= 0.25 + 0.75 * sunVisibility2 + 0.5 * noonFactor;
+            }
+
+            if (isMoon) {
+                color.rgb *= smoothstep1(min1(length(color.rgb))) * 1.3;
+            }
+
+            color.rgb *= GetHorizonFactor(VdotU);
+
+            #ifdef CAVE_FOG
+                color.rgb *= 1.0 - 0.75 * GetCaveFactor();
+            #endif
+        } else { // Custom Sky
+            #if MC_VERSION >= 11300
+                color.rgb *= color.rgb * smoothstep1(sqrt1(max0(VdotU)));
+            #else
+                discard;
+                // Old mc custom skyboxes are weirdly broken, so we discard.
+            #endif
+        }
+
+        if (isEyeInWater == 1) color.rgb *= 0.25;
+
+        #ifdef SUN_MOON_DURING_RAIN
+            color.a *= 1.0 - 0.8 * rainFactor;
+        #else
+            color.a *= 1.0 - rainFactor;
+        #endif
+    #endif
+
+    #ifdef NETHER
+        vec4 color = vec4(0.0);
+    #endif
+
+    #ifdef END
+        vec4 color = vec4(endSkyColor, 1.0);
+    #endif
+
+    #ifdef COLOR_CODED_PROGRAMS
+        ColorCodeProgram(color, -1);
+    #endif
+
     /* DRAWBUFFERS:0 */
-	gl_FragData[0] = albedo;
+    gl_FragData[0] = color;
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
 
-//Uniforms//
-#if defined OVERWORLD && defined VANILLA_SKYBOX
-	uniform mat4 gbufferModelView;
+out vec2 texCoord;
 
-	#if AA == 2 || AA == 3
-		uniform int frameCounter;
+flat out vec4 glColor;
 
-		uniform float viewWidth;
-		uniform float viewHeight;
-		#include "/lib/util/jitter.glsl"
-	#endif
-	#if AA == 4
-		uniform int frameCounter;
-
-		uniform float viewWidth;
-		uniform float viewHeight;
-		#include "/lib/util/jitter2.glsl"
-	#endif
+#ifdef OVERWORLD
+    flat out vec3 upVec, sunVec;
 #endif
+
+//Attributes//
 
 //Common Variables//
-#if defined END || (defined OVERWORLD && defined VANILLA_SKYBOX)
-	#ifdef OVERWORLD
-		float timeAngleM = timeAngle;
-	#else
-		#if !defined SEVEN && !defined SEVEN_2
-			float timeAngleM = 0.25;
-		#else
-			float timeAngleM = 0.5;
-		#endif
-	#endif
-#endif
+
+//Common Functions//
+
+//Includes//
 
 //Program//
 void main() {
-	#if defined END || (defined OVERWORLD && defined VANILLA_SKYBOX)
-		texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
-		color = gl_Color;
-		
-		gl_Position = ftransform();
-	#endif
-	
-	#if defined OVERWORLD && defined VANILLA_SKYBOX
-		const vec2 sunRotationData = vec2(cos(sunPathRotation * 0.01745329251994), -sin(sunPathRotation * 0.01745329251994));
-		float ang = fract(timeAngleM - 0.25);
-		ang = (ang + (cos(ang * 3.14159265358979) * -0.5 + 0.5 - ang) / 3.0) * 6.28318530717959;
-		sunVec = normalize((gbufferModelView * vec4(vec3(-sin(ang), cos(ang) * sunRotationData) * 2000.0, 1.0)).xyz);
+    gl_Position = ftransform();
+    texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 
-		upVec = normalize(gbufferModelView[1].xyz);
-		
-		#if AA > 1
-			gl_Position.xy = TAAJitter(gl_Position.xy, gl_Position.w);
-		#endif
-	#else	
-		#if !defined END
-			vec4 color = vec4(0.0);
-			gl_Position = color;
-		#endif	
-	#endif
+    glColor = gl_Color;
+
+    #ifdef OVERWORLD
+        upVec = normalize(gbufferModelView[1].xyz);
+        sunVec = GetSunVector();
+    #endif
 }
 
 #endif

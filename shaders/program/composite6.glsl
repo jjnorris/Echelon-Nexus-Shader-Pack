@@ -1,69 +1,70 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+/////////////////////////////////////
+// Complementary Shaders by EminGT //
+/////////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-varying vec2 texCoord;
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-uniform float viewWidth, viewHeight;
-uniform float far, near;
+noperspective in vec2 texCoord;
 
-uniform vec3 cameraPosition, previousCameraPosition;
+//Pipeline Constants//
+#include "/lib/pipelineSettings.glsl"
 
-uniform mat4 gbufferPreviousProjection, gbufferProjectionInverse;
-uniform mat4 gbufferPreviousModelView, gbufferModelViewInverse;
+const bool colortex3MipmapEnabled = true;
 
-uniform sampler2D colortex1;
-uniform sampler2D colortex2;
-uniform sampler2D colortex7;
-uniform sampler2D depthtex1;
-
-//Optifine Constants//
-const bool colortex1MipmapEnabled = true;
+//Common Variables//
+vec2 view = vec2(viewWidth, viewHeight);
 
 //Common Functions//
 float GetLinearDepth(float depth) {
-   return (2.0 * near) / (far + near - depth * (far - near));
+    return (2.0 * near) / (far + near - depth * (far - near));
 }
+
 //Includes//
-#if AA > 1
-#include "/lib/antialiasing/taa.glsl"
+#ifdef TAA
+    #include "/lib/antialiasing/taa.glsl"
 #endif
 
 //Program//
 void main() {
-    vec3 color = texture2DLod(colortex1, texCoord, 0).rgb;
+    vec3 color = texelFetch(colortex3, texelCoord, 0).rgb;
 
-    #if AA > 1
-        vec4 temp = vec4(texture2D(colortex2, texCoord).r, 0.0, 0.0, 0.0);
-        TAA(color, temp);
+    vec3 temp = vec3(0.0);
+    float z1 = 0.0;
+
+    #ifdef TAA
+        z1 = texelFetch(depthtex1, texelCoord, 0).r;
+        DoTAA(color, temp, z1);
     #endif
 
-    /*DRAWBUFFERS:1*/
-	gl_FragData[0] = vec4(color, 1.0);
-	#if AA > 1
-    /*DRAWBUFFERS:12*/
-	gl_FragData[1] = vec4(temp);
-	#endif
+    /* DRAWBUFFERS:32 */
+    gl_FragData[0] = vec4(color, 1.0);
+    gl_FragData[1] = vec4(temp, 1.0);
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
+
+noperspective out vec2 texCoord;
+
+//Attributes//
+
+//Common Variables//
+
+//Common Functions//
+
+//Includes//
 
 //Program//
 void main() {
-	texCoord = gl_MultiTexCoord0.xy;
-	
-	gl_Position = ftransform();
+    gl_Position = ftransform();
+
+    texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 }
 
 #endif

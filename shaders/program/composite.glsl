@@ -1,350 +1,246 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+/////////////////////////////////////
+// Complementary Shaders by EminGT //
+/////////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-varying vec2 texCoord;
-
-varying vec3 sunVec, upVec;
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-uniform int frameCounter;
-uniform int isEyeInWater;
-uniform int worldDay;
+noperspective in vec2 texCoord;
 
-uniform float isEyeInCave;
-uniform float blindFactor;
-uniform float far, near;
-uniform float frameTimeCounter;
-uniform float rainStrengthS;
-uniform float screenBrightness; 
-uniform float viewWidth, viewHeight, aspectRatio;
-uniform float eyeAltitude;
+in vec3 sunVec;
 
-uniform ivec2 eyeBrightnessSmooth;
-
-uniform vec3 cameraPosition;
-uniform vec3 fogColor;
-uniform vec3 skyColor;
-
-uniform mat4 gbufferProjection, gbufferProjectionInverse;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 shadowModelView;
-uniform mat4 shadowProjection;
-
-uniform sampler2D colortex0;
-uniform sampler2D colortex1;
-uniform sampler2D depthtex0;
-uniform sampler2D depthtex1;
-
-#ifdef LIGHT_SHAFTS
-	uniform sampler2DShadow shadowtex0;
-	uniform sampler2DShadow shadowtex1;
-	uniform sampler2D shadowcolor0;
+#ifdef END
+    in float vlFactor;
 #endif
 
-#ifdef RAINBOW
-	uniform float rainStrength;
-	uniform float wetness;
-	uniform float isDry, isRainy, isSnowy;
-#endif
-
-#if ((defined BLACK_OUTLINE || defined PROMO_OUTLINE) && defined OUTLINE_ON_EVERYTHING && defined END && defined ENDER_NEBULA) || defined WATER_REFRACT && !defined NETHER || NETHER_REFRACT > 0 && defined NETHER || defined LIGHT_SHAFTS || defined RAINBOW
-	uniform sampler2D noisetex;
-#endif
-
-#if NIGHT_VISION > 1 || ((defined BLACK_OUTLINE || defined PROMO_OUTLINE) && defined OUTLINE_ON_EVERYTHING)
-	uniform float nightVision;
-#endif
-
-//Optifine Constants//
-const bool colortex0Clear = true;//
-const bool colortex1Clear = true;//
-const bool colortex2Clear = false;//
-const bool colortex3Clear = true;//
-const bool gaux1Clear = false;
-const bool gaux2Clear = false;
-const bool gaux3Clear = false;
-const bool gaux4Clear = true;//
-#ifdef COLORED_LIGHT
-	const bool colortex8Clear = true;//
-	const bool colortex9Clear = false;//
-#endif
+//Pipeline Constants//
 
 //Common Variables//
-float eBS = eyeBrightnessSmooth.y / 240.0;
-float sunVisibility = clamp(dot( sunVec,upVec) + 0.0625, 0.0, 0.125) * 8.0;
-float vsBrightness = clamp(screenBrightness, 0.0, 1.0);
+vec3 upVec = normalize(gbufferModelView[1].xyz);
+vec3 eastVec = normalize(gbufferModelView[0].xyz);
+vec3 northVec = normalize(gbufferModelView[2].xyz);
+#ifdef OVERWORLD
+    vec3 lightVec = sunVec * ((timeAngle < 0.5325 || timeAngle > 0.9675) ? 1.0 : -1.0);
+#else
+    vec3 lightVec = sunVec;
+#endif
+float SdotU = dot(sunVec, upVec);
+float sunFactor = SdotU < 0.0 ? clamp(SdotU + 0.375, 0.0, 0.75) / 0.75 : clamp(SdotU + 0.03125, 0.0, 0.0625) / 0.0625;
+float sunVisibility = clamp(SdotU + 0.0625, 0.0, 0.125) / 0.125;
+float sunVisibility2 = sunVisibility * sunVisibility;
+float shadowTimeVar1 = abs(sunVisibility - 0.5) * 2.0;
+float shadowTimeVar2 = shadowTimeVar1 * shadowTimeVar1;
+float shadowTime = shadowTimeVar2 * shadowTimeVar2;
+float farMinusNear = far - near;
+float z0;
+float z1;
 
-#if WORLD_TIME_ANIMATION == 2
-int modifiedWorldDay = int(mod(worldDay, 100.0) + 5.0);
-float frametime = (worldTime + modifiedWorldDay * 24000) * 0.05 * ANIMATION_SPEED;
-float cloudtime = frametime;
-#endif
-#if WORLD_TIME_ANIMATION == 1
-int modifiedWorldDay = int(mod(worldDay, 100.0) + 5.0);
-float frametime = frameTimeCounter * ANIMATION_SPEED;
-float cloudtime = (worldTime + modifiedWorldDay * 24000) * 0.05 * ANIMATION_SPEED;
-#endif
-#if WORLD_TIME_ANIMATION == 0
-float frametime = frameTimeCounter * ANIMATION_SPEED;
-float cloudtime = frametime;
-#endif
-
-vec3 lightVec = sunVec * (1.0 - 2.0 * float(timeAngle > 0.5325 && timeAngle < 0.9675));
+vec2 view = vec2(viewWidth, viewHeight);
 
 //Common Functions//
-float GetLuminance(vec3 color) {
-	return dot(color,vec3(0.299, 0.587, 0.114));
-}
-
 float GetLinearDepth(float depth) {
-   return (2.0 * near) / (far + near - depth * (far - near));
+    return (2.0 * near) / (far + near - depth * (far - near));
 }
-
-#if defined LIGHT_SHAFTS || defined VL_CLOUDS
-	float GetDepth(float depth) {
-		return 2.0 * near * far / (far + near - (2.0 * depth - 1.0) * (far - near));
-	}
-
-	float GetDistX(float dist) {
-		return (far * (dist - near)) / (dist * (far - near));
-	}
-#endif
 
 //Includes//
-#include "/lib/color/waterColor.glsl"
-#include "/lib/color/skyColor.glsl"
-#include "/lib/util/dither.glsl"
-#include "/lib/atmospherics/waterFog.glsl"
-#include "/lib/color/dimensionColor.glsl"
 #include "/lib/util/spaceConversion.glsl"
+#include "/lib/util/dither.glsl"
+#include "/lib/atmospherics/fog/mainFog.glsl"
+#include "/lib/colors/skyColors.glsl"
+#include "/lib/colors/lightAndAmbientColors.glsl"
+#include "/lib/materials/materialMethods/reflections.glsl"
 
-#ifdef LIGHT_SHAFTS
-	#ifdef SMOKEY_WATER_LIGHTSHAFTS
-		#include "/lib/lighting/caustics.glsl"
-	#endif
-	#include "/lib/atmospherics/volumetricLight.glsl"
-#endif
-
-#ifdef VL_CLOUDS
-	#include "/lib/atmospherics/volumetricClouds.glsl"
-#endif
-
-#if (defined BLACK_OUTLINE || defined PROMO_OUTLINE) && defined OUTLINE_ON_EVERYTHING
-	#ifdef OVERWORLD
-		#include "/lib/atmospherics/sky.glsl"
-	#endif
-	#if defined END && defined ENDER_NEBULA
-		#include "/lib/atmospherics/skyboxEffects.glsl"
-	#endif
-
-	#include "/lib/atmospherics/fog.glsl"
-#endif
-
-#if defined PROMO_OUTLINE && defined OUTLINE_ON_EVERYTHING
-	#include "/lib/outline/promoOutline.glsl"
-#endif
-
-#if defined BLACK_OUTLINE && defined OUTLINE_ON_EVERYTHING
-	#include "/lib/color/blocklightColor.glsl"
-	#include "/lib/outline/blackOutline.glsl"
+#ifdef ATM_COLOR_MULTS
+    #include "/lib/colors/colorMultipliers.glsl"
 #endif
 
 //Program//
 void main() {
-    vec4 color = texture2D(colortex0, texCoord.xy);
-    vec3 translucent = texture2D(colortex1,texCoord.xy).rgb;
-	float z0 = texture2D(depthtex0, texCoord.xy).r;
-	float z1 = texture2D(depthtex1, texCoord.xy).r;
-	bool water = false;
-
-	if (translucent.b > 0.999 && z1 > z0) {
-		water = true;
-		translucent = vec3(1.0);
-	}
-
-	#if defined LIGHT_SHAFTS || defined WATER_REFRACT && !defined NETHER || NETHER_REFRACT > 0 && defined NETHER || defined RAINBOW
-		vec4 viewPos = gbufferProjectionInverse * (vec4(texCoord, z0, 1.0) * 2.0 - 1.0);
-		viewPos /= viewPos.w;
-	#endif
-
-	#if defined WATER_REFRACT && !defined NETHER || NETHER_REFRACT > 0 && defined NETHER
-		#ifndef NETHER
-		if (water)
-		#endif
-		{
-			vec3 worldPos = ViewToWorld(viewPos.xyz);
-			#ifndef NETHER
-				vec3 worldPosM = worldPos.xyz + cameraPosition.xyz;
-				vec2 refractPos = worldPosM.xz * 0.005 + worldPosM.y * 0.0025 + 0.0035 * WATER_SPEED * frametime;
-			#else
-				vec3 worldPosM = normalize(worldPos) * 0.035;
-				vec2 refractPos = worldPosM.xz + worldPosM.y * 0.5 - 0.001 * WATER_SPEED * frametime;
-			#endif
-
-			vec2 refractNoise = texture2D(noisetex, refractPos).rg - vec2(0.5);
-
-			float hand = 1.0 - float(z0 < 0.56);
-			float d0 = GetLinearDepth(z0);
-			float fovScale = gbufferProjection[1][1] / 1.37;
-			float refractScale = fovScale;
-			#ifndef NETHER
-				float distScale0 = max((far - near) * d0 + near, 6.0);
-				refractScale *= REFRACT_STRENGTH / distScale0;
-			#else
-				#if NETHER_REFRACT == 1
-					refractScale *= 2.0;
-				#elif NETHER_REFRACT == 2
-					refractScale *= 4.0;
-				#else
-					refractScale *= 8.0;
-				#endif
-				refractScale *= clamp(pow2(length(viewPos)) * 0.0001, 0.0, 0.1); //9452873723569
-			#endif
-			refractNoise *= vec2(0.07 * hand * refractScale);
-			vec2 refractCoord = texCoord.xy + refractNoise;
-
-			#ifndef NETHER
-				float waterCheck = float(texture2D(colortex1, refractCoord).b > 0.999);
-				float z0check = texture2D(depthtex0, refractCoord).r;
-				float z1check = texture2D(depthtex1, refractCoord).r;
-				float depthDif = GetLinearDepth(z1check) - GetLinearDepth(z0check);
-				refractNoise *= clamp(depthDif * 150.0, 0.0, 1.0);
-				if (z0check >= 0.56 && waterCheck > 0.95)
-			#else
-				float z0check = texture2D(depthtex0, refractCoord).r;
-				vec4 viewPosCheck = gbufferProjectionInverse * (vec4(texCoord, z0check, 1.0) * 2.0 - 1.0);
-				viewPosCheck /= viewPosCheck.w;
-				refractNoise *= clamp(pow2(length(viewPosCheck)) * 0.0001, 0.0, 0.1); //9452873723569
-			#endif
-			{
-				refractCoord = texCoord.xy + refractNoise;
-				#if MC_VERSION > 10710
-					color.rgb = texture2D(colortex0, refractCoord).rgb;
-				#else
-					//To fix blocky water in Mc 1.7.10 (reason unknown)
-					color.rgb = texture2DLod(colortex0, refractCoord, 0).rgb;
-				#endif
-				#ifndef NETHER
-					if (isEyeInWater == 1) {
-						translucent = texture2D(colortex1, refractCoord).rgb;
-						if (translucent.b > 0.999) translucent = vec3(1.0);
-						z0 = texture2D(depthtex0, refractCoord).r;
-						z1 = texture2D(depthtex1, refractCoord).r;
-					}
-				#endif
-			}
-		}
-	#endif
+    ivec2 texelCoord = ivec2(texCoord * view);
+    vec4 color = texelFetch(colortex0, texelCoord, 0);
+    vec4 texture4 = texelFetch(colortex4, texelCoord, 0);
     
-	#if defined LIGHT_SHAFTS || defined RAINBOW
-		float dither = Bayer64(gl_FragCoord.xy);
-	#endif
+    z0 = texelFetch(depthtex0, texelCoord, 0).r;
+    z1 = texelFetch(depthtex1, texelCoord, 0).r;
 
-	#if defined BLACK_OUTLINE && defined OUTLINE_ON_EVERYTHING
-		float outlineMask = BlackOutlineMask(depthtex0, depthtex1);
-		float wFogMult = 1.0 + eBS;
-		if (outlineMask > 0.5 || isEyeInWater > 0.5)
-			BlackOutline(color.rgb, depthtex0, wFogMult);
-	#endif
-	
-	#if defined PROMO_OUTLINE && defined OUTLINE_ON_EVERYTHING
-		if (z1 - z0 > 0.0) PromoOutline(color.rgb, depthtex0);
-	#endif
+    #ifdef ATM_COLOR_MULTS
+        atmColorMult = GetAtmColorMult();
+        sqrtAtmColorMult = sqrt(atmColorMult);
+    #endif
 
-	if (isEyeInWater == 1 && z0 == 1.0) {
-		color.rgb = 0.8 * pow(underwaterColor.rgb * (1.0 - blindFactor), vec3(2.0));
-	}
+    vec4 reflectOutput = vec4(0.0);
+    if (
+        z0 < 1.0
+        #if WORLD_SPACE_REFLECTIONS_INTERNAL == -1 || WATER_REFLECT_QUALITY <= 0
+            && z0 == z1
+        #endif
+    ) {
+        vec3 texture6 = texelFetch(colortex6, texelCoord, 0).rgb;
+        vec3 normalM = mat3(gbufferModelView) * texture4.rgb;
+        vec4 screenPos = vec4(texCoord, z0, 1.0);
+        vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
+        viewPos /= viewPos.w;
+        float lViewPos = length(viewPos);
+        vec3 nViewPos = normalize(viewPos.xyz);
+        vec3 playerPos = ViewToPlayer(viewPos.xyz);
+        bool entityOrParticle = z0 < 0.56;
 
-	if (isEyeInWater == 2) color.rgb *= vec3(2.0, 0.4, 0.02);
+        float dither = texture2DLod(noisetex, gl_FragCoord.xy / 128.0, 0.0).b;
+        #if defined TAA || defined PBR_REFLECTIONS
+            dither = fract(dither + goldenRatio * mod(float(frameCounter), 3600.0));
+        #endif
 
-	#if defined LIGHT_SHAFTS || defined VL_CLOUDS || defined RAINBOW
-		#ifdef OVERWORLD
-			vec3 nViewPos = normalize(viewPos.xyz);
-			float cosS = dot(nViewPos, lightVec);
-		#else
-			float cosS = 0.0;
-		#endif
-	#endif
+        int materialMaskInt = int(texture6.g * 255.1);
+        float skyLightFactor = texture6.b;
+        float smoothnessD = texture6.r;
+        float fresnelM = texture4.a;
+        float intenseFresnel = 0.0;
+        float ssao = 1.0;
+        vec3 reflectColor = vec3(1.0);
 
-	vec3 vl = vec3(0.0);
-	vec4 clouds = vec4(0.0);
-	#if defined LIGHT_SHAFTS || defined VL_CLOUDS
-		vec3 vlAlbedo = translucent;
-		if (isEyeInWater == 0 && water) vlAlbedo = vec3(0.0);
-		float depth0 = GetDepth(z0);
-		float depth1 = GetDepth(z1);
-		#ifdef LIGHT_SHAFTS
-			vl = GetVolumetricRays(depth0, depth1, vlAlbedo, dither, cosS);
-		#endif
-		#ifdef VL_CLOUDS
-			clouds = GetVolumetricClouds(depth0, depth1, vlAlbedo, dither, viewPos);
-		#endif
-	#endif
+        #ifdef IRIS_FEATURE_FADE_VARIABLE
+            if (skyLightFactor > 0.50001) skyLightFactor = eyeBrightnessM;
+            else skyLightFactor *= 1.9999;
+        #endif
 
-	#ifdef RAINBOW
-		#include "/lib/atmospherics/rainbow.glsl"
-	#endif
+        #include "/lib/materials/materialHandling/deferredMaterials.glsl"
 
-	#if NIGHT_VISION > 1
-		if (nightVision > 0.0) {
-			float nightVisionGreen = length(color.rgb);
-			nightVisionGreen = smoothstep(0.0, 1.0, nightVisionGreen) * 3.0 + 0.25 * sqrt(nightVisionGreen);
-			float whiteFactor = 0.01;
-			vec3 nightVisionFinal = vec3(nightVisionGreen * whiteFactor, nightVisionGreen, nightVisionGreen * whiteFactor);
-			color.rgb = mix(color.rgb, nightVisionFinal, nightVision);
-		}
-	#endif
-	
-    /*DRAWBUFFERS:01*/
-	gl_FragData[0] = color;
-	gl_FragData[1] = vec4(vl, 1.0);
+        float fresnel = clamp(1.0 + dot(normalM, nViewPos), 0.0, 1.0);
 
-	#ifdef VL_CLOUDS
-    /*DRAWBUFFERS:015*/
-	gl_FragData[2] = clouds;
-	#endif
+        if (fresnelM > 0.0) {
+            #ifdef TAA
+                float noiseMult = 0.3;
+            #else
+                float noiseMult = 0.3;
+            #endif
+            #ifdef PBR_REFLECTIONS
+                bool opaqueSurface = z0 == z1;
+                float minBlendFactor = 0.035 + 0.09 * pow2(pow2(pow2(smoothnessD)));
+
+                if (entityOrParticle) {
+                    noiseMult *= 0.125;
+                    minBlendFactor = 0.125;
+                    if (!opaqueSurface) reflectColor = vec3(0.0);
+                }
+            #endif
+            noiseMult *= pow2(1.0 - smoothnessD);
+
+            vec2 roughCoord = gl_FragCoord.xy / 128.0;
+            vec3 roughNoise = vec3(
+                texture2DLod(noisetex, roughCoord, 0.0).r,
+                texture2DLod(noisetex, roughCoord + 0.09375, 0.0).r,
+                texture2DLod(noisetex, roughCoord + 0.1875, 0.0).r
+            );
+            roughNoise = fract(roughNoise + vec3(dither, dither * goldenRatio, dither * pow2(goldenRatio)));
+            roughNoise = noiseMult * (roughNoise - vec3(0.5));
+
+            vec3 refNormal = normalM + roughNoise;
+
+            vec4 reflection = GetReflection(refNormal, viewPos.xyz, nViewPos, playerPos, lViewPos, z0,
+                                            depthtex1, dither, skyLightFactor, fresnel,
+                                            smoothnessD, vec3(0.0), vec3(0.0), vec3(0.0), 0.0);
+            
+            reflection.rgb *= reflectColor;
+            reflectOutput = reflection;
+
+            #ifdef PBR_REFLECTIONS
+                if (opaqueSurface) {
+                    refDist = min(refDist, far - lViewPos);
+                    vec4 virtualRefPos = vec4(viewPos.xyz + refDist * nViewPos, 1.0);
+                    vec4 playerVirtualRefPos = gbufferModelViewInverse * virtualRefPos; // note: don't need to do perspective division with model view matrix
+                    vec4 virtualPrevRefPos = playerVirtualRefPos;
+                    virtualPrevRefPos.xyz -= previousCameraPosition - cameraPosition;
+                    virtualPrevRefPos = gbufferPreviousProjection * (gbufferPreviousModelView * virtualPrevRefPos);
+                    virtualPrevRefPos.xyz = 0.5 * virtualPrevRefPos.xyz / virtualPrevRefPos.w + 0.5;
+                    virtualPrevRefPos.z = min(1, virtualPrevRefPos.z);
+                    if (virtualPrevRefPos.xyz == clamp01(virtualPrevRefPos.xyz)) {
+                        vec4 prevPos = gbufferProjection * (
+                            gbufferModelView * vec4(
+                                playerPos + (cameraPosition - previousCameraPosition) +
+                                gbufferModelViewInverse[3].xyz - transpose(mat3(gbufferPreviousModelView)) * gbufferPreviousModelView[3].xyz
+                                , 1.0
+                            )
+                        );
+                        prevPos.xyz = 0.5 * prevPos.xyz / prevPos.w + 0.5;
+                        virtualPrevRefPos.xy *= view;
+                        virtualPrevRefPos.xy = (
+                            smoothstep(0, 1, smoothstep(0, 1, fract(virtualPrevRefPos.xy - 0.5))) +
+                            floor(virtualPrevRefPos.xy - 0.5) +
+                            0.5
+                        ) / view;
+
+                        float linearZ1 = GetLinearDepth(z1);
+                        vec2 pixelMovement = view * (prevPos.xy - texCoord);
+                        vec3 prevNormalM = mat3(gbufferModelView) * texture2D(colortex1, virtualPrevRefPos.xy).rgb;
+
+                        vec4 prevRefCurrentPosHeuristic = playerVirtualRefPos;
+                        prevRefCurrentPosHeuristic.xyz += normalize(previousCameraPosition - cameraPosition - playerVirtualRefPos.xyz) * refDist;
+                        prevRefCurrentPosHeuristic = gbufferProjection * (gbufferModelView * prevRefCurrentPosHeuristic);
+                        prevRefCurrentPosHeuristic.xyz = 0.5 * prevRefCurrentPosHeuristic.xyz / prevRefCurrentPosHeuristic.w + 0.5;
+
+                        vec4 prevRef = texture2D(colortex7, virtualPrevRefPos.xy);
+                        float prevValid = exp(
+                            - 0.03 * length(view * (virtualPrevRefPos.xy - texCoord))
+                            - min(0.75, 10.0 * sqrt(length(cameraPosition - previousCameraPosition)))
+                            - 0.003 * length(pixelMovement)
+                            - 12.0 * length(normalM - prevNormalM)
+                            - abs(prevRef.a - linearZ1) * far / 1.0
+                            - 10 * length(prevRefCurrentPosHeuristic.xy - clamp01(prevRefCurrentPosHeuristic.xy))
+                        );
+
+                        reflectOutput.rgb = mix(prevRef.rgb, reflectOutput.rgb, min1(minBlendFactor / prevValid));
+                        reflectOutput.a = linearZ1;
+                    }
+                }
+            #endif
+        }
+    }
+
+    /* DRAWBUFFERS:7 */
+    gl_FragData[0] = reflectOutput;
+
+    // same check as #ifdef PBR_REFLECTIONS but for Optifine to understand:
+    #if BLOCK_REFLECT_QUALITY >= 2 && RP_MODE >= 1
+        /* DRAWBUFFERS:71 */
+        gl_FragData[1] = vec4(texture4.rgb, 1.0);
+    #endif
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
 
-//Uniforms//
+noperspective out vec2 texCoord;
 
-uniform mat4 gbufferModelView;
+out vec3 sunVec;
+
+#ifdef END
+    out float vlFactor;
+#endif
+
+//Attributes//
 
 //Common Variables//
-#ifdef OVERWORLD
-	float timeAngleM = timeAngle;
-#else
-	#if !defined SEVEN && !defined SEVEN_2
-		float timeAngleM = 0.25;
-	#else
-		float timeAngleM = 0.5;
-	#endif
-#endif
+
+//Common Functions//
+
+//Includes//
 
 //Program//
 void main() {
-	texCoord = gl_MultiTexCoord0.xy;
-	
-	gl_Position = ftransform();
+    gl_Position = ftransform();
+    
+    texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 
-	const vec2 sunRotationData = vec2(cos(sunPathRotation * 0.01745329251994), -sin(sunPathRotation * 0.01745329251994));
-	float ang = fract(timeAngleM - 0.25);
-	ang = (ang + (cos(ang * 3.14159265358979) * -0.5 + 0.5 - ang) / 3.0) * 6.28318530717959;
-	sunVec = normalize((gbufferModelView * vec4(vec3(-sin(ang), cos(ang) * sunRotationData) * 2000.0, 1.0)).xyz);
+    sunVec = GetSunVector();
 
-	upVec = normalize(gbufferModelView[1].xyz);
+    #ifdef END
+        vlFactor = texelFetch(colortex5, ivec2(viewWidth-1, viewHeight-1), 0).a;
+    #endif
 }
 
 #endif

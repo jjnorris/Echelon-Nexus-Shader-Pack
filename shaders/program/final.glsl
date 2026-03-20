@@ -1,174 +1,181 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+/////////////////////////////////////
+// Complementary Shaders by EminGT //
+/////////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-varying vec2 texCoord;
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-uniform sampler2D colortex1;
+noperspective in vec2 texCoord;
 
-uniform float viewWidth, viewHeight;
+//Pipeline Constants//
+#include "/lib/pipelineSettings.glsl"
 
-#if THE_FORBIDDEN_OPTION > 0
-	uniform float frameTimeCounter;
+//Common Variables//
+vec2 view = vec2(viewWidth, viewHeight);
+
+#if defined MC_ANISOTROPIC_FILTERING || COLORED_LIGHTING > 0 || WORLD_SPACE_REFLECTIONS > 0 && COLORED_LIGHTING == 0
+    #define ANY_ERROR_MESSAGE
 #endif
 
-#if defined GRAY_START || (defined WATERMARK && WATERMARK_DURATION < 900)
-	uniform float starter;
+#ifdef MC_ANISOTROPIC_FILTERING
+    #define OPTIFINE_AF_ERROR
 #endif
 
-#ifdef WATERMARK
-	uniform sampler2D depthtex2;
+#if COLORED_LIGHTING > 0 && defined MC_OS_MAC
+    #define APPLE_ACT_ERROR
 #endif
 
-//Optifine Constants//
-/*
-const int colortex0Format = R11F_G11F_B10F; //main
-const int colortex1Format = RGB8; 			//raw albedo & raw translucent & water mask & vl & bloom
-const int colortex2Format = RGBA16;		    //temporal stuff
-const int colortex3Format = RGB8; 			//specular & skymapMod
-const int gaux1Format = R8; 				//half-res ao
-const int gaux2Format = RGBA8;			    //reflection
-const int gaux3Format = RG16; 				//normals
-const int gaux4Format = RGB8; 				//taa mask & galaxy image
-
-#ifdef COLORED_LIGHT
-	const int colortex8Format = RGB16;
-	const int colortex9Format = RGB16;
+#if COLORED_LIGHTING > 0 && (!defined IS_IRIS || !defined IRIS_FEATURE_CUSTOM_IMAGES)
+    #define OPTIFINE_ACT_ERROR
 #endif
-*/
 
-const bool shadowHardwareFiltering = true;
-const float shadowDistanceRenderMul = 1.0;
+#if COLORED_LIGHTING > 0
+    #define COORDINATES_ACT_ERROR
+    #define SHADOWDISTANCE_ACT_ERROR
+#endif
 
-const float entityShadowDistanceMul = 0.125; // Iris devs may bless us with their power
+#if WORLD_SPACE_REFLECTIONS > 0 && COLORED_LIGHTING == 0
+    #define WSR_MISSING_ACT_ERROR
+#endif
 
-const int noiseTextureResolution = 512;
-
-const float drynessHalflife = 300.0;
-const float wetnessHalflife = 300.0;
-
-const float ambientOcclusionLevel = 1.0;
+#if WORLD_SPACE_REFLECTIONS_INTERNAL > 0
+    #include "/lib/voxelization/SSBOs/clearSSBOs.glsl"
+#endif
 
 //Common Functions//
-#if SHARPEN > 0
-	vec2 sharpenOffsets[4] = vec2[4](
-		vec2( 1.0,  0.0),
-		vec2( 0.0,  1.0),
-		vec2(-1.0,  0.0),
-		vec2( 0.0, -1.0)
-	);
+#if IMAGE_SHARPENING > 0
+    vec2 viewD = 1.0 / vec2(viewWidth, viewHeight);
 
-	void SharpenFilter(inout vec3 color, vec2 texCoord2) {
-		float mult = SHARPEN * 0.025;
-		vec2 view = 1.0 / vec2(viewWidth, viewHeight);
+    vec2 sharpenOffsets[4] = vec2[4](
+        vec2( viewD.x,  0.0),
+        vec2( 0.0,  viewD.x),
+        vec2(-viewD.x,  0.0),
+        vec2( 0.0, -viewD.x)
+    );
 
-		color *= SHARPEN * 0.1 + 1.0;
+    void SharpenImage(inout vec3 color, vec2 texCoordM) {
+        #ifdef TAA
+            float sharpenMult = IMAGE_SHARPENING;
+        #else
+            float sharpenMult = IMAGE_SHARPENING * 0.5;
+        #endif
+        float mult = 0.0125 * sharpenMult;
+        color *= 1.0 + 0.05 * sharpenMult;
 
-		for(int i = 0; i < 4; i++) {
-			vec2 offset = sharpenOffsets[i] * view;
-			color -= texture2DLod(colortex1, texCoord2 + offset, 0).rgb * mult;
-		}
-	}
+        for (int i = 0; i < 4; i++) {
+            color -= texture2D(colortex3, texCoordM + sharpenOffsets[i]).rgb * mult;
+        }
+    }
 #endif
 
-#ifdef GRAY_START
-	float GetLuminance(vec3 color) {
-		return dot(color, vec3(0.299, 0.587, 0.114));
-	}
+//Includes//
+#ifdef ANY_ERROR_MESSAGE
+    #include "/lib/textRendering/textRenderer.glsl"
+
+    void beginTextM(int textSize, vec2 offset) {
+        float scale = 860;
+        beginText(ivec2(vec2(scale * viewWidth / viewHeight, scale) * texCoord) / textSize, ivec2(0 + offset.x, scale / textSize - offset.y));
+        text.bgCol = vec4(0.0);
+    }
 #endif
 
 //Program//
 void main() {
-	#ifndef OVERDRAW
-		vec2 texCoord2 = texCoord;
-	#else
-		vec2 texCoord2 = (texCoord - vec2(0.5)) * (2.0 / 3.0) + vec2(0.5);
-	#endif
-	
-	/*
-	vec2 wh = vec2(viewWidth, viewHeight);
-	wh /= 32.0;
-	texCoord2 = floor(texCoord2 * wh) / wh;
-	*/
+    vec2 texCoordM = texCoord;
 
-	#if CHROMATIC_ABERRATION < 1
-		vec3 color = texture2DLod(colortex1, texCoord2, 0).rgb;
-	#else
-		float midDistX = texCoord2.x - 0.5;
-		float midDistY = texCoord2.y - 0.5;
-		vec2 scale = vec2(1.0, viewHeight / viewWidth);
-		vec2 aberration = vec2(midDistX, midDistY) * (2.0 / vec2(viewWidth, viewHeight)) * scale * CHROMATIC_ABERRATION;
-		vec3 color = vec3(texture2DLod(colortex1, texCoord2 + aberration, 0).r,
-						  texture2DLod(colortex1, texCoord2, 0).g,
-						  texture2DLod(colortex1, texCoord2 - aberration, 0).b);
-	#endif
+    #ifdef UNDERWATER_DISTORTION
+        if (isEyeInWater == 1)
+            texCoordM += WATER_REFRACTION_INTENSITY * 0.00035 * sin((texCoord.x + texCoord.y) * 25.0 + frameTimeCounter * 3.0);
+    #endif
 
-	#if SHARPEN > 0
-		SharpenFilter(color, texCoord2);
-	#endif
-	
-	#if THE_FORBIDDEN_OPTION > 0
-		#if THE_FORBIDDEN_OPTION < 3
-			float fractTime = fract(frameTimeCounter*0.01);
-			color = pow(vec3(1.0) - color, vec3(5.0));
-			color = vec3(color.r + color.g + color.b)*0.5;
-			color.g = 0.0;
-			if (fractTime < 0.5)  color.b *= fractTime, color.r *= 0.5 - fractTime;
-			if (fractTime >= 0.5) color.b *= 1 - fractTime, color.r *= fractTime - 0.5;
-			color = pow(color, vec3(1.8))*8;
-		#else
-			float colorM = dot(color, vec3(0.299, 0.587, 0.114));
-			color = vec3(colorM);
-		#endif
-	#endif
+    vec3 color = texture2D(colortex3, texCoordM).rgb;
 
-	#ifdef WATERMARK
-		#if WATERMARK_DURATION < 900
-			if (starter < 0.99) {
-		#endif
-				vec2 textCoord = vec2(texCoord.x, 1.0 - texCoord.y);
-				vec4 compText = texture2D(depthtex2, textCoord);
-				//compText.rgb = pow(compText.rgb, vec3(2.2));
-				#if WATERMARK_DURATION < 900
-					float starterFactor = 1.0 - 2.0 * abs(starter - 0.5);
-					starterFactor = max(starterFactor - 0.333333, 0.0) * 3.0;
-					starterFactor = smoothstep(0.0, 1.0, starterFactor);
-				#else
-					float starterFactor = 1.0;
-				#endif
-				color.rgb = mix(color.rgb, compText.rgb, compText.a * starterFactor);
-		#if WATERMARK_DURATION < 900
-			}
-		#endif
-	#endif
+    #if CHROMA_ABERRATION > 0
+        vec2 scale = vec2(1.0, viewHeight / viewWidth);
+        vec2 aberration = (texCoordM - 0.5) * (2.0 / vec2(viewWidth, viewHeight)) * scale * CHROMA_ABERRATION;
+        color.rb = vec2(texture2D(colortex3, texCoordM + aberration).r, texture2D(colortex3, texCoordM - aberration).b);
+    #endif
 
-	#ifdef GRAY_START
-		float animation = min(starter, 0.1) * 10.0;
-		vec3 grayStart = vec3(GetLuminance(color.rgb));
-		color.rgb = mix(grayStart, color.rgb, animation);
-	#endif
+    #if IMAGE_SHARPENING > 0
+        SharpenImage(color, texCoordM);
+    #endif
 
-	gl_FragColor = vec4(color, 1.0);
+    /*ivec2 boxOffsets[8] = ivec2[8](
+        ivec2( 1, 0),
+        ivec2( 0, 1),
+        ivec2(-1, 0),
+        ivec2( 0,-1),
+        ivec2( 1, 1),
+        ivec2( 1,-1),
+        ivec2(-1, 1),
+        ivec2(-1,-1)
+    );
+
+    for (int i = 0; i < 8; i++) {
+        color = max(color, texelFetch(colortex3, texelCoord + boxOffsets[i], 0).rgb);
+    }*/
+
+    #ifdef OPTIFINE_AF_ERROR
+        #include "/lib/textRendering/error_optifine_af.glsl"
+    #elif defined APPLE_ACT_ERROR
+        #include "/lib/textRendering/error_apple_act.glsl"
+    #elif defined OPTIFINE_ACT_ERROR
+        #include "/lib/textRendering/error_optifine_act.glsl"
+    #elif defined WSR_MISSING_ACT_ERROR
+        #include "/lib/textRendering/error_wsr_missing_act.glsl"
+    #else
+        #ifdef COORDINATES_ACT_ERROR
+            ivec2 absCameraPositionIntXZ = abs(cameraPositionInt.xz);
+            if (max(absCameraPositionIntXZ.x, absCameraPositionIntXZ.y) > 8388550) {
+                #include "/lib/textRendering/error_coordinates_act.glsl"
+            }
+        #endif
+        #ifdef SHADOWDISTANCE_ACT_ERROR
+            if (COLORED_LIGHTING_INTERNAL > shadowDistance*2) {
+                #include "/lib/textRendering/error_shadowdistance_act.glsl"
+            }
+        #endif
+    #endif
+
+    #if WORLD_SPACE_REFLECTIONS_INTERNAL > 0
+        clearSSBOs();
+    #endif
+
+    #ifdef VIGNETTE_R
+        vec2 texCoordMin = texCoordM.xy - 0.5;
+        float vignette = 1.0 - dot(texCoordMin, texCoordMin) * (1.0 - GetLuminance(color));
+        color *= vignette;
+    #endif
+
+    float dither = texture2DLod(noisetex, texCoord * view / 128.0, 0.0).b;
+    color += vec3((dither - 0.25) / 128.0);
+
+    /* DRAWBUFFERS:0 */
+    gl_FragData[0] = vec4(color, 1.0);
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
+
+noperspective out vec2 texCoord;
+
+//Attributes//
+
+//Common Variables//
+
+//Common Functions//
+
+//Includes//
 
 //Program//
 void main() {
-	texCoord = gl_MultiTexCoord0.xy;
-	
-	gl_Position = ftransform();
+    gl_Position = ftransform();
+    texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 }
 
 #endif

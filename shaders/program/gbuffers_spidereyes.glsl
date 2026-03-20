@@ -1,86 +1,72 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+/////////////////////////////////////
+// Complementary Shaders by EminGT //
+/////////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-varying vec2 texCoord;
-
-varying vec4 color;
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-uniform sampler2D texture;
+in vec2 texCoord;
+
+in vec4 glColor;
+
+//Pipeline Constants//
+
+//Common Variables//
+
+//Common Functions//
+
+//Includes//
+#ifdef COLOR_CODED_PROGRAMS
+    #include "/lib/misc/colorCodedPrograms.glsl"
+#endif
 
 //Program//
 void main() {
-    vec4 albedo = texture2D(texture, texCoord.xy) * color;
-	
-	#ifdef COMPBR
-		if (CheckForColor(albedo.rgb, vec3(224, 121, 250))) { // Enderman Eye Edges
-			albedo.rgb = vec3(0.8, 0.25, 0.8);
-		}
-	#endif
+    vec4 color = texture2D(tex, texCoord) * glColor;
 
-	albedo.rgb = pow1_5(albedo.rgb);
-	albedo.rgb *= pow2(1.0 + albedo.b + 0.5 * albedo.g) * 1.5;
+    color.rgb = pow1_5(color.rgb) * (
+        1.5
+        + vec3(4.1, 3.0, 4.1) * max0(color.r * color.b - color.g) // Tweak for Enderman
+        + 5.0 * max0(color.g * color.b - color.r) // Tweak for Warden
+        - 0.5 * sqrt(color.r * color.g * color.b) // Tweak for Breeze
+        - vec3(0.0, 0.7, 0.7) * max0(color.r * color.g - color.b) // Tweak for Copper Golem
+    );
 
-	albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.35;
-	
-    #ifdef WHITE_WORLD
-		albedo.rgb = vec3(2.0);
-	#endif
+    #ifdef COLOR_CODED_PROGRAMS
+        ColorCodeProgram(color, -1);
+    #endif
 
-	#ifdef GBUFFER_CODING
-		albedo.rgb = vec3(170.0, 0.0, 0.0) / 255.0;
-		albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.5;
-	#endif
-	
     /* DRAWBUFFERS:0 */
-	gl_FragData[0] = albedo;
-
-	#if defined ADV_MAT && defined REFLECTION_SPECULAR
-	/* DRAWBUFFERS:0361 */
-	gl_FragData[1] = vec4(0.0, 0.0, 0.0, 1.0);
-	gl_FragData[2] = vec4(0.0, 0.0, 0.0, 1.0);
-	gl_FragData[3] = vec4(0.0, 0.0, 0.0, 1.0);
-	#endif
+    gl_FragData[0] = color;
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
 
-//Uniforms//
-#ifdef WORLD_CURVATURE
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-#endif
+out vec2 texCoord;
+
+out vec4 glColor;
 
 //Attributes//
 
+//Common Variables//
+
+//Common Functions//
+
 //Includes//
-#ifdef WORLD_CURVATURE
-	#include "/lib/vertex/worldCurvature.glsl"
-#endif
 
 //Program//
-void main(){
-	texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
-	color = gl_Color;
+void main() {
+    gl_Position = ftransform();
 
-	#ifdef WORLD_CURVATURE
-		vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
-		position.y -= WorldCurvature(position.xz);
-		gl_Position = gl_ProjectionMatrix * gbufferModelView * position;
-	#else
-		gl_Position = ftransform();
-	#endif
+    texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
+
+    glColor = gl_Color;
 }
 
 #endif

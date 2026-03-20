@@ -1,160 +1,99 @@
-/*
-Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
-*/
+/////////////////////////////////////
+// Complementary Shaders by EminGT //
+/////////////////////////////////////
 
 //Common//
 #include "/lib/common.glsl"
 
-//Varyings//
-varying vec2 texCoord, lmCoord;
-
-varying vec3 upVec, sunVec;
-
-varying vec4 color;
-
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-#ifdef FSH
+#ifdef FRAGMENT_SHADER
 
-//Uniforms//
-uniform int isEyeInWater;
+flat in vec2 lmCoord;
+in vec2 texCoord;
 
-uniform float nightVision;
-uniform float rainStrengthS;
-uniform float screenBrightness; 
-uniform float viewWidth, viewHeight;
+flat in vec3 upVec, sunVec;
 
-uniform ivec2 eyeBrightnessSmooth;
+flat in vec4 glColor;
 
-uniform mat4 gbufferProjectionInverse;
-
-uniform sampler2D texture;
-
-#ifdef DYNAMIC_SHADER_LIGHT
-	uniform int heldItemId, heldItemId2;
-
-	uniform int heldBlockLightValue;
-	uniform int heldBlockLightValue2;
-
-	uniform mat4 gbufferModelViewInverse;
-	uniform mat4 shadowProjection;
-	uniform mat4 shadowModelView;
-#endif
+//Pipeline Constants//
 
 //Common Variables//
-float eBS = eyeBrightnessSmooth.y / 240.0;
-float sunVisibility = clamp(dot( sunVec,upVec) + 0.0625, 0.0, 0.125) * 8.0;
-float vsBrightness = clamp(screenBrightness, 0.0, 1.0);
+float SdotU = dot(sunVec, upVec);
+float sunFactor = SdotU < 0.0 ? clamp(SdotU + 0.375, 0.0, 0.75) / 0.75 : clamp(SdotU + 0.03125, 0.0, 0.0625) / 0.0625;
+float sunVisibility = clamp(SdotU + 0.0625, 0.0, 0.125) / 0.125;
+float sunVisibility2 = sunVisibility * sunVisibility;
+
+//Common Functions//
 
 //Includes//
-#include "/lib/color/lightColor.glsl"
-#include "/lib/color/blocklightColor.glsl"
+#include "/lib/colors/lightAndAmbientColors.glsl"
 
-#ifdef DYNAMIC_SHADER_LIGHT
-	#include "/lib/util/spaceConversion.glsl"
-
-	#if AA == 2 || AA == 3
-		#include "/lib/util/jitter.glsl"
-	#endif
-	#if AA == 4
-		#include "/lib/util/jitter2.glsl"
-	#endif
+#ifdef COLOR_CODED_PROGRAMS
+    #include "/lib/misc/colorCodedPrograms.glsl"
 #endif
 
 //Program//
 void main() {
-	vec4 albedo = texture2D(texture, texCoord.xy);
-	vec2 lightmap = lmCoord;
+    vec4 color = texture2D(tex, texCoord);
+    color *= glColor;
 
-	#ifdef OVERLAY_FIX
-	if (color.r + color.g + color.b > 2.99999) {
-	#endif
-		if (albedo.a > 0.0) {
-			#ifdef DYNAMIC_SHADER_LIGHT
-				vec3 screenPos = vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z);
-				#if AA > 1
-					vec3 viewPos = ScreenToView(vec3(TAAJitter(screenPos.xy, -0.5), screenPos.z));
-				#else
-					vec3 viewPos = ScreenToView(screenPos);
-				#endif
-				vec3 worldPos = ViewToWorld(viewPos);
-				float lViewPos = length(viewPos.xyz);
+    if (color.a < 0.1 || isEyeInWater == 3) discard;
 
-				float handLight = min(float(heldBlockLightValue2 + heldBlockLightValue), 15.0) / 15.0;
+    if (color.r + color.g < 1.5) color.a *= rainTexOpacity;
+    else color.a *= snowTexOpacity;
 
-				float handLightFactor = 1.0 - min(DYNAMIC_LIGHT_DISTANCE * handLight, lViewPos) / (DYNAMIC_LIGHT_DISTANCE * handLight);
-				float finalHandLight = handLight * handLightFactor;
-				lightmap.x = max(finalHandLight * 0.95, lightmap.x);
-			#endif
-			#ifndef COMPATIBILITY_MODE
-				if (albedo.r <= 0.75) { // Rain
-					albedo.a *= 0.15;
-					albedo.rgb = sqrt(albedo.rgb);
-					albedo.rgb *= (ambientCol + lightmap.x * lightmap.x * blocklightCol) * 0.75;
-				} else { 				// Snow
-					albedo.a *= 0.15;
-					albedo.rgb = sqrt(albedo.rgb);
-					albedo.rgb *= (ambientCol + lightmap.x * lightmap.x * blocklightCol) * 2.0;
-				}
-			#else
-				albedo.a *= 0.15;
-				albedo.rgb = sqrt(albedo.rgb);
-				albedo.rgb *= (ambientCol + lightmap.x * lightmap.x * blocklightCol) * 0.75;
-			#endif
-		}
-		
-		#ifdef GBUFFER_CODING
-			albedo.rgb = vec3(85.0, 85.0, 85.0) / 255.0;
-			albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.5;
-		#endif
-	#ifdef OVERLAY_FIX
-	} else {
-		albedo.rgb = pow(color.rgb, vec3(2.2)) * 2.0;
-		albedo.rgb *= 0.25 + lightmap.x + lightmap.y * (1.0 + sunVisibility);
-		if (texCoord.x == 0.0) albedo.a = pow2(color.a * color.a);
-	}
-	#endif
+    color.rgb = sqrt3(color.rgb) * (blocklightCol * 2.0 * lmCoord.x + (ambientColor + 0.2 * lightColor) * lmCoord.y * (0.6 + 0.3 * sunFactor));
 
-/* DRAWBUFFERS:0 */
-	gl_FragData[0] = albedo;
+    #ifdef COLOR_CODED_PROGRAMS
+        ColorCodeProgram(color, -1);
+    #endif
+
+    /* DRAWBUFFERS:0 */
+    gl_FragData[0] = color;
+    #ifdef PBR_REFLECTIONS
+        /* DRAWBUFFERS:04 */
+        gl_FragData[1] = vec4(0);
+    #endif
 }
 
 #endif
 
 //////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-#ifdef VSH
+#ifdef VERTEX_SHADER
 
-//Uniforms//
+flat out vec2 lmCoord;
+out vec2 texCoord;
 
-uniform mat4 gbufferModelView;
+flat out vec3 upVec, sunVec;
+
+flat out vec4 glColor;
+
+//Attributes//
 
 //Common Variables//
-#ifdef OVERWORLD
-	float timeAngleM = timeAngle;
-#else
-	#if !defined SEVEN && !defined SEVEN_2
-		float timeAngleM = 0.25;
-	#else
-		float timeAngleM = 0.5;
-	#endif
-#endif
+
+//Common Functions//
+
+//Includes//
 
 //Program//
 void main() {
-	texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
+    vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
+    glColor = gl_Color;
 
-	lmCoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
-	lmCoord = clamp(lmCoord * 2.0 - 1.0, 0.0, 1.0);
+    #ifdef WAVING_RAIN
+        float rainWavingFactor = eyeBrightnessM2; // Prevents clipping inside interiors
+        position.xz += rainWavingFactor * (0.4 * position.y + 0.2) * vec2(sin(frameTimeCounter * 0.3) + 0.5, sin(frameTimeCounter * 0.5) * 0.5);
+        position.xz *= 1.0 - 0.08 * position.y * rainWavingFactor;
+    #endif
 
-	const vec2 sunRotationData = vec2(cos(sunPathRotation * 0.01745329251994), -sin(sunPathRotation * 0.01745329251994));
-	float ang = fract(timeAngleM - 0.25);
-	ang = (ang + (cos(ang * 3.14159265358979) * -0.5 + 0.5 - ang) / 3.0) * 6.28318530717959;
-	sunVec = normalize((gbufferModelView * vec4(vec3(-sin(ang), cos(ang) * sunRotationData) * 2000.0, 1.0)).xyz);
+    gl_Position = gl_ProjectionMatrix * gbufferModelView * position;
 
-	upVec = normalize(gbufferModelView[1].xyz);
-	
-	gl_Position = ftransform();
+    texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
+    lmCoord  = GetLightMapCoordinates();
 
-	color = gl_Color;
+    upVec = normalize(gbufferModelView[1].xyz);
+    sunVec = GetSunVector();
 }
 
 #endif
