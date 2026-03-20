@@ -1,6 +1,10 @@
 #version 400 compatibility
 
-/* RENDERTARGETS: 0 */
+/* RENDERTARGETS: 1 */
+
+/* PHASE 1: BASE LIGHTING
+   Output goes to colortex1 for Phase 2 to read
+*/
 
 // ============================================================================
 // PHASE 1 SHADER OPTIONS
@@ -27,5 +31,6 @@ in vec2 uv;
 out vec4 fragColor;
 
 void main() {
+	// Phase 1: Simple base lighting (Phase 2 will add shadows)
 	fragColor = texture(colortex0, uv);
 }
