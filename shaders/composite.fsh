@@ -229,8 +229,22 @@ void main() {
     float shadowDepth = shadowData.z;
 
     // PCSS parameters (configurable) — declared early to allow debug sampling
-    float lightSize = 0.5;      // Light angular size (0.3-1.0)
-    float searchRadius = 3.0;   // Blocker search radius
+    // Reduced defaults and derivative-based search radius to use normalized
+    // shadow-map UV units instead of large absolute offsets that sampled
+    // outside the shadow map and produced fully-lit results.
+    float lightSize = 0.3;        // Light angular size (smaller => tighter penumbra)
+    float baseSearchRadius = 0.01; // Base search radius in normalized shadow UV
+
+    // Approximate per-pixel footprint in shadow UV using derivatives.
+    // This yields a stable, resolution-independent radius for blocker searches
+    // and PCF filtering.
+    vec2 ddx = dFdx(shadowCoord);
+    vec2 ddy = dFdy(shadowCoord);
+    float texelSize = max(length(ddx), length(ddy));
+    texelSize = max(texelSize, 1e-5);
+
+    // Scale the search radius relative to the local UV footprint.
+    float searchRadius = max(baseSearchRadius, texelSize * 8.0);
 
     // Debug visualization modes (set `debugMode` uniform):
     // 0 = off (normal rendering)
