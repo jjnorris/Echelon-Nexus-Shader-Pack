@@ -1,0 +1,30 @@
+# ECHELON NEXUS - ENGLISH (US) LOCALIZATION
+
+# Screen titles
+screen.SHADOWS=Shadow Settings
+screen.LIGHTING=Lighting Configuration
+
+# Option labels and descriptions
+option.SHADOW_QUALITY=Shadow Quality
+option.SHADOW_QUALITY.comment=Adjust shadow quality (Low=performance, Ultra=quality)
+
+option.BLOCK_LIGHTING=Block Light
+option.BLOCK_LIGHTING.comment=Enable light from torches, lava, glowstone
+
+option.BIOME_TINT=Biome Tint
+option.BIOME_TINT.comment=Enable biome-specific grass and foliage coloring
+
+option.AMBIENT_OCCLUSION=Ambient Occlusion
+option.AMBIENT_OCCLUSION.comment=Enable vertex-based ambient occlusion
+
+# Value labels
+value.SHADOW_QUALITY.0=Low
+value.SHADOW_QUALITY.1=Medium
+value.SHADOW_QUALITY.2=High
+value.SHADOW_QUALITY.3=Ultra
+
+# Profile labels
+profile.Ultra=Ultra Quality
+profile.High=High Quality (Recommended)
+profile.Medium=Medium
+profile.Low=Low (Performance)
