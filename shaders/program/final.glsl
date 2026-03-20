@@ -2,13 +2,12 @@
 // Gamma correction and screen output
 // Based on Iris pipeline for Minecraft 1.21.11
 
-// Global varyings - visible to both vertex and fragment stages
-out vec2 uv;
-
-// Global uniforms
+// Global uniforms (shared between stages)
 uniform sampler2D colortex0;
 
 #ifdef VSH
+
+out vec2 uv;
 
 void main() {
 	gl_Position = gl_ProjectionMatrix * (gl_ModelViewMatrix * gl_Vertex);
@@ -18,6 +17,8 @@ void main() {
 #endif
 
 #ifdef FSH
+
+in vec2 uv;
 
 void main() {
 	vec3 color = texture(colortex0, uv).rgb;

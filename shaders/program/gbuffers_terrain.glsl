@@ -2,18 +2,17 @@
 // Based on Iris pipeline for Minecraft 1.21.11
 // Reference: Photon Shaders gbuffers_all_solid pattern
 
-// Global varyings - visible to both vertex and fragment stages
-out vec2 uv;
-out vec2 light_levels;
-out vec4 tint;
-
-// Global uniforms
+// Global uniforms (shared between stages)
 uniform sampler2D gtexture;
 uniform sampler2D lightmap;
 
 /* RENDERTARGETS: 0 */
 
 #ifdef VSH
+
+out vec2 uv;
+out vec2 light_levels;
+out vec4 tint;
 
 void main() {
 	// Texture coordinates from vertex data
@@ -33,6 +32,10 @@ void main() {
 #endif
 
 #ifdef FSH
+
+in vec2 uv;
+in vec2 light_levels;
+in vec4 tint;
 
 out vec4 fragColor;
 
