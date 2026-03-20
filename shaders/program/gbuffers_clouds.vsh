@@ -8,9 +8,9 @@
 // - Photon Shaders: https://github.com/sixthsurge/photon
 //
 // Purpose: Render vanilla clouds with smoothing
-in vec3 vaPosition;
-in vec4 vaColor;
-in vec2 vaUV0;
+attribute vec3 vaPosition;
+attribute vec4 vaColor;
+attribute vec2 vaUV0;
 
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferProjection;

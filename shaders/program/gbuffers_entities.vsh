@@ -8,12 +8,12 @@
 // - Shadow Tutorial: https://github.com/shaderLABS/Shadow-Tutorial
 //
 // Purpose: Render mobs, armor stands, and other entities with full materials
-in vec3 vaPosition;
-in vec4 vaColor;
-in vec2 vaUV0;
-in vec2 vaUV1;
-in vec2 vaUV2;
-in vec3 vaNormal;
+attribute vec3 vaPosition;
+attribute vec4 vaColor;
+attribute vec2 vaUV0;
+attribute vec2 vaUV1;
+attribute vec2 vaUV2;
+attribute vec3 vaNormal;
 
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferProjection;

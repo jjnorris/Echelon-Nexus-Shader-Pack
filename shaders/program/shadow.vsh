@@ -10,12 +10,12 @@
 // - OptiFine shaders.txt: https://raw.githubusercontent.com/sp614x/optifine/master/OptiFineDoc/doc/shaders.txt
 //
 // ============================================================================
-in vec3 vaPosition;
-in vec4 vaColor;
-in vec2 vaUV0;
-in vec2 vaUV1;
-in vec2 vaUV2;
-in vec3 vaNormal;
+attribute vec3 vaPosition;
+attribute vec4 vaColor;
+attribute vec2 vaUV0;
+attribute vec2 vaUV1;
+attribute vec2 vaUV2;
+attribute vec3 vaNormal;
 
 // Shadow rendering specific uniforms
 uniform mat4 gbufferModelViewInverse;

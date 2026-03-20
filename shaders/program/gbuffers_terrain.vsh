@@ -9,12 +9,12 @@
 //
 // Purpose: Render terrain blocks with full LabPBR material support
 // Handles solid terrain, cutout blocks (grass), and material properties
-in vec3 vaPosition;
-in vec4 vaColor;
-in vec2 vaUV0;
-in vec2 vaUV1;
-in vec2 vaUV2;
-in vec3 vaNormal;
+attribute vec3 vaPosition;
+attribute vec4 vaColor;
+attribute vec2 vaUV0;
+attribute vec2 vaUV1;
+attribute vec2 vaUV2;
+attribute vec3 vaNormal;
 
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferProjection;

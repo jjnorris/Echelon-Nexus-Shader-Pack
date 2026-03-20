@@ -9,12 +9,12 @@
 //
 // Purpose: Render textured blocks/entities with material properties
 // Outputs to G-Buffer for deferred rendering
-in vec3 vaPosition;
-in vec4 vaColor;
-in vec2 vaUV0;
-in vec2 vaUV1;
-in vec2 vaUV2;
-in vec3 vaNormal;
+attribute vec3 vaPosition;
+attribute vec4 vaColor;
+attribute vec2 vaUV0;
+attribute vec2 vaUV1;
+attribute vec2 vaUV2;
+attribute vec3 vaNormal;
 
 // Standard uniforms for vertex transformation
 uniform mat4 gbufferModelView;
