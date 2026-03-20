@@ -1,7 +1,7 @@
-#version 130 
+#version 130
 
-#define GBUFFERS_ENTITIES
+#define FRAGMENT_SHADER
 #define OVERWORLD
-#define FSH
+#define GBUFFERS_ENTITIES
 
 #include "/program/gbuffers_entities.glsl"

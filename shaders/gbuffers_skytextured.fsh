@@ -1,8 +1,7 @@
-#version 130 
+#version 130
 
+#define FRAGMENT_SHADER
 #define OVERWORLD
-#define FSH
-
 #define GBUFFERS_SKYTEXTURED
 
 #include "/program/gbuffers_skytextured.glsl"

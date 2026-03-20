@@ -1,7 +1,7 @@
-#version 130 
+#version 130
 
-#define GBUFFERS_TERRAIN
+#define FRAGMENT_SHADER
 #define OVERWORLD
-#define FSH
+#define GBUFFERS_TERRAIN
 
 #include "/program/gbuffers_terrain.glsl"

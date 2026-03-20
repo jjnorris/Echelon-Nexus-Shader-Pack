@@ -1,7 +1,7 @@
-#version 130 
+#version 130
 
-#define GBUFFERS_BLOCK
+#define FRAGMENT_SHADER
 #define OVERWORLD
-#define FSH
+#define GBUFFERS_BLOCK
 
 #include "/program/gbuffers_block.glsl"

@@ -1,70 +1,140 @@
-vec3 GetSkyColor(vec3 lightCol, float NdotU, vec3 nViewPos, bool isReflection) {
-    float timeBrightnessInv = 1.0 - timeBrightness;
-    float timeBrightnessInv2 = timeBrightnessInv * timeBrightnessInv;
-    float timeBrightnessInv4 = timeBrightnessInv2 * timeBrightnessInv2;
-    float timeBrightnessInv8 = timeBrightnessInv4 * timeBrightnessInv4;
+#ifndef INCLUDE_SKY
+    #define INCLUDE_SKY
 
-    float NdotSp = clamp(dot(nViewPos, sunVec) * 0.5 + 0.5, 0.001, 1.0);
-    float NdotS = NdotSp * NdotSp;
-    NdotS *= NdotS;
+    #include "/lib/colors/lightAndAmbientColors.glsl"
+    #include "/lib/colors/skyColors.glsl"
 
-    float absNdotU = abs(NdotU);
-
-    vec3 skyColor2 = skyColor * skyColor;
-
-    vec3 sky = mix(sqrt1(skyColor) * 0.47, skyColor2 * 0.9, absNdotU);
-    sky = sky * (0.5 + 0.5 * sunVisibility) * skyMult;
-
-    #ifdef ONESEVEN
-        sky = vec3(0.812, 0.741, 0.674) * 0.5;
+    #ifdef CAVE_FOG
+        #include "/lib/atmospherics/fog/caveFactor.glsl"
     #endif
 
-    float horizon = 1.0 - max(NdotU + 0.1, 0.0) * (1.0 - 0.25 * NdotS * sunVisibility);
-    horizon = min(horizon, 0.9);
-    horizon *= horizon;
-    
-    float lightmix = NdotS * max(1.0 - absNdotU * 2.0, 0.0) * 0.5 + horizon + 0.05;
-    lightmix *= sunVisibility * (1.0 - rainStrengthS) * timeBrightnessInv8;
+    vec3 GetSky(float VdotU, float VdotS, float dither, bool doGlare, bool doGround) {
+        // Prepare variables
+        float nightFactorSqrt2 = sqrt2(nightFactor);
+        float nightFactorM = sqrt2(nightFactorSqrt2) * 0.4;
+        float VdotSM1 = pow2(max(VdotS, 0.0));
+        float VdotSM2 = pow2(VdotSM1);
+        float VdotSM3 = pow2(pow2(max(-VdotS, 0.0)));
+        float VdotSML = sunVisibility > 0.5 ? VdotS : -VdotS;
 
-    sky *= 2.0 - 0.5 * timeBrightnessInv4;
-    sky *= mix(SKY_NOON, SKY_DAY, timeBrightnessInv4);
-    
-    float mult = 0.1 * (1.0 + rainStrengthS) + horizon * (0.3 + 0.1 * sunVisibility);
-	
-	float meFactorP = min((1.0 - min(moonBrightness, 0.6) / 0.6) * 0.115, 0.075);
-    float meNdotU = 1.0 - absNdotU;
-    float meFactor = meFactorP * meNdotU * meNdotU * 15.0 * max(timeBrightnessInv4 - rainStrengthS, 0.0);
-    vec3 meColor = mix(lightMorning, lightEvening, mefade);
-    meColor *= meColor;
-    meColor *= meColor;
-    meColor *= meFactor * meFactor * NdotS;
+        float VdotUmax0 = max(VdotU, 0.0);
+        float VdotUmax0M = 1.0 - pow2(VdotUmax0);
 
-    vec3 finalSky = mix(sky * (1.0 - pow2(lightmix)), lightCol * sqrt(lightCol), lightmix);
-    
-    vec3 nightSky = ambientNight * ambientNight * (3.25 + 2.25 * max(sqrt1(NdotU), 0.0));
-    nightSky *= mix(SKY_NIGHT, 1.0, sunVisibility);
-    finalSky += nightSky;
+        // Prepare colors
+        vec3 upColor = mix(nightUpSkyColor * (1.5 - 0.5 * nightFactorSqrt2 + nightFactorM * VdotSM3 * 1.5), dayUpSkyColor, sunFactor);
+        vec3 middleColor = mix(nightMiddleSkyColor * (3.0 - 2.0 * nightFactorSqrt2), dayMiddleSkyColor * (1.0 + VdotSM2 * 0.3), sunFactor);
+        vec3 downColor = mix(nightDownSkyColor, dayDownSkyColor, (sunFactor + sunVisibility) * 0.5);
 
-    finalSky *= max(1.0 - length(meColor) * 0.5, 0.0);
-    finalSky += meColor * 0.8;
-    
-	if (isReflection) {
-        float invNdotU = max(-NdotU, 0.0);
-        float groundFactor = 0.5 * (11.0 * rainStrengthS + 1.0) * (-5.0 * sunVisibility + 6.0);
-        float ground = exp(-groundFactor / (invNdotU * 6.0));
-        ground = smoothstep(0.0, 1.0, ground);
-        mult *= (1.0 - ground);
+        // Mix the colors
+            // Set sky gradient
+            float VdotUM1 = pow2(1.0 - VdotUmax0);
+                  VdotUM1 = pow(VdotUM1, 1.0 - VdotSM2 * 0.4);
+                  VdotUM1 = mix(VdotUM1, 1.0, rainFactor2 * 0.15);
+            vec3 finalSky = mix(upColor, middleColor, VdotUM1);
+
+            // Add sunset color
+            float VdotUM2 = pow2(1.0 - abs(VdotU));
+                  VdotUM2 = VdotUM2 * VdotUM2 * (3.0 - 2.0 * VdotUM2);
+                  VdotUM2 *= (0.7 - nightFactorM + VdotSM1 * (0.3 + nightFactorM)) * invNoonFactor * sunFactor;
+            finalSky = mix(finalSky, sunsetDownSkyColorP * (1.0 + VdotSM1 * 0.3), VdotUM2 * invRainFactor);
+
+            // Add sky ground with fake light scattering
+            float VdotUM3 = min(max0(-VdotU + 0.08) / 0.35, 1.0);
+                  VdotUM3 = smoothstep1(VdotUM3);
+            vec3 scatteredGroundMixer = vec3(VdotUM3 * VdotUM3, sqrt1(VdotUM3), sqrt3(VdotUM3));
+                 scatteredGroundMixer = mix(vec3(VdotUM3), scatteredGroundMixer, 0.75 - 0.5 * rainFactor);
+            finalSky = mix(finalSky, downColor, scatteredGroundMixer);
+        //
+
+        // Sky Ground
+        if (doGround)
+            finalSky *= smoothstep1(pow2(1.0 + min(VdotU, 0.0)));
+
+        // Apply Underwater Fog
+        if (isEyeInWater == 1)
+            finalSky = mix(finalSky * 3.0, waterFogColor, VdotUmax0M);
+
+        // Sun/Moon Glare
+        if (doGlare) {
+            if (0.0 < VdotSML) {
+                float glareScatter = 3.0 * (2.0 - clamp01(VdotS * 1000.0));
+                #ifndef SUN_MOON_DURING_RAIN
+                    glareScatter *= 1.0 - 0.75 * rainFactor2;
+                #endif
+                float VdotSM4 = pow(abs(VdotS), glareScatter);
+
+                float visfactor = 0.075;
+                float glare = visfactor / (1.0 - (1.0 - visfactor) * VdotSM4) - visfactor;
+                glare *= 0.7;
+
+                float glareWaterFactor = isEyeInWater * sunVisibility;
+                vec3 glareColor = mix(vec3(0.38, 0.4, 0.5) * 0.3, vec3(1.5, 0.7, 0.3) + vec3(0.0, 0.5, 0.5) * noonFactor, sunVisibility);
+                     glareColor = glareColor + glareWaterFactor * vec3(7.0);
+
+                #ifdef SUN_MOON_DURING_RAIN
+                    glare *= 1.0 - 0.6 * rainFactor;
+                #else
+                    glare *= 1.0 - 0.8 * rainFactor;
+                #endif
+                #if RAIN_STYLE == 1
+                    float glareDesaturateFactor = 0.5 * rainFactor;
+                #elif RAIN_STYLE == 2
+                    float glareDesaturateFactor = rainFactor;
+                #endif
+                glareColor = mix(glareColor, vec3(GetLuminance(glareColor)), glareDesaturateFactor);
+
+                finalSky += glareColor * glare * shadowTime;
+            }
+        }
+
+        #ifdef CAVE_FOG
+            // Apply Cave Fog
+            finalSky = mix(finalSky, caveFogColor, GetCaveFactor() * VdotUmax0M);
+        #endif
+
+        // Dither to fix banding
+        finalSky += (dither - 0.5) / 128.0;
+
+        return finalSky;
     }
 
-    //duplicate 98765
-    vec3 weatherSky = weatherCol * weatherCol;
-    weatherSky *= GetLuminance(ambientCol / (weatherSky)) * 1.4;
-    weatherSky *= mix(SKY_RAIN_NIGHT, SKY_RAIN_DAY, sunVisibility);
-    weatherSky = max(weatherSky, skyColor2 * 0.75); // Lightning Sky Color
-	weatherSky *= rainStrengthS;
-    finalSky = mix(finalSky, weatherSky, rainStrengthS) * mult;
+    vec3 GetLowQualitySky(float VdotU, float VdotS, float dither, bool doGlare, bool doGround) {
+        // Prepare variables
+        float VdotUmax0 = max(VdotU, 0.0);
+        float VdotUmax0M = 1.0 - pow2(VdotUmax0);
 
-    finalSky = pow(finalSky, vec3(1.125));
+        // Prepare colors
+        vec3 upColor = mix(nightUpSkyColor, dayUpSkyColor, sunFactor);
+        vec3 middleColor = mix(nightMiddleSkyColor, dayMiddleSkyColor, sunFactor);
 
-    return finalSky;
-}
+        // Mix the colors
+            // Set sky gradient
+            float VdotUM1 = pow2(1.0 - VdotUmax0);
+                  VdotUM1 = mix(VdotUM1, 1.0, rainFactor2 * 0.2);
+            vec3 finalSky = mix(upColor, middleColor, VdotUM1);
+
+            // Add sunset color
+            float VdotUM2 = pow2(1.0 - abs(VdotU));
+                  VdotUM2 *= invNoonFactor * sunFactor * (0.8 + 0.2 * VdotS);
+            finalSky = mix(finalSky, sunsetDownSkyColorP * (shadowTime * 0.6 + 0.2), VdotUM2 * invRainFactor);
+        //
+
+        // Sky Ground
+        finalSky *= pow2(pow2(1.0 + min(VdotU, 0.0)));
+
+        // Apply Underwater Fog
+        if (isEyeInWater == 1)
+            finalSky = mix(finalSky, waterFogColor, VdotUmax0M);
+
+        // Sun/Moon Glare
+        finalSky *= 1.0 + mix(nightFactor, 0.5 + 0.7 * noonFactor, VdotS * 0.5 + 0.5) * pow2(pow2(pow2(VdotS)));
+
+        #ifdef CAVE_FOG
+            // Apply Cave Fog
+            finalSky = mix(finalSky, caveFogColor, GetCaveFactor() * VdotUmax0M);
+        #endif
+
+        return finalSky;
+    }
+
+#endif //INCLUDE_SKY

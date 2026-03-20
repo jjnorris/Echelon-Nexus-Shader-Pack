@@ -1,7 +1,7 @@
-#version 130 
+#version 130
 
-#define GBUFFERS_HAND
+#define FRAGMENT_SHADER
 #define OVERWORLD
-#define FSH
+#define GBUFFERS_HAND
 
 #include "/program/gbuffers_hand.glsl"

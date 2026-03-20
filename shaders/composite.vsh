@@ -1,6 +1,7 @@
-#version 130 
+#version 130
 
+#define VERTEX_SHADER
 #define OVERWORLD
-#define VSH
+#define COMPOSITE
 
 #include "/program/composite.glsl"

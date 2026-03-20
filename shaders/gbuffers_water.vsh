@@ -1,7 +1,7 @@
-#version 130 
+#version 130
 
+#define VERTEX_SHADER
 #define OVERWORLD
-#define WATER
-#define VSH
+#define GBUFFERS_WATER
 
 #include "/program/gbuffers_water.glsl"

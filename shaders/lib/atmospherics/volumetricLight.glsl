@@ -1,228 +1,345 @@
+// Volumetric tracing from Robobo1221, highly modified
+
+#include "/lib/colors/lightAndAmbientColors.glsl"
+
+float GetDepth(float depth) {
+    return 2.0 * near * far / (far + near - (2.0 * depth - 1.0) * (far - near));
+}
+
+float GetDistX(float dist) {
+    return (far * (dist - near)) / (dist * (far - near));
+}
+
 vec4 DistortShadow(vec4 shadowpos, float distortFactor) {
-	shadowpos.xy *= 1.0 / distortFactor;
-	shadowpos.z = shadowpos.z * 0.2;
-	shadowpos = shadowpos * 0.5 + 0.5;
+    shadowpos.xy *= 1.0 / distortFactor;
+    shadowpos.z = shadowpos.z * 0.2;
+    shadowpos = shadowpos * 0.5 + 0.5;
 
-	return shadowpos;
+    return shadowpos;
 }
 
-void GetShadowSpace(inout vec3 worldposition, inout vec4 vlposition, float shadowdepth, vec2 texCoord) {
-	vec4 viewPos = gbufferProjectionInverse * (vec4(texCoord, shadowdepth, 1.0) * 2.0 - 1.0);
-	viewPos /= viewPos.w;
+vec4 GetVolumetricLight(inout vec3 color, inout float vlFactor, vec3 translucentMult, float lViewPos0, float lViewPos1, vec3 nViewPos, float VdotL, float VdotU, vec2 texCoord, float z0, float z1, float dither) {
+    vec4 volumetricLight = vec4(0.0);
+    float vlMult = 1.0 - maxBlindnessDarkness;
 
-	vec4 wpos = gbufferModelViewInverse * viewPos;
-	worldposition = wpos.xyz / wpos.w;
-	wpos = shadowModelView * wpos;
-	wpos = shadowProjection * wpos;
-	wpos /= wpos.w;
-	
-	float distb = sqrt(wpos.x * wpos.x + wpos.y * wpos.y);
-	float distortFactor = 1.0 - shadowMapBias + distb * shadowMapBias;
-	wpos = DistortShadow(wpos,distortFactor);
-	
-	#if defined WATER_CAUSTICS && defined OVERWORLD && defined SMOKEY_WATER_LIGHTSHAFTS
-		if (isEyeInWater == 1.0) {
-			vec3 worldPos = ViewToWorld(viewPos.xyz);
-			vec3 causticpos = worldPos.xyz + cameraPosition.xyz;
-			float caustic = getCausticWaves(causticpos.xyz * 0.25);
-			wpos.xy *= 1.0 + caustic * 0.0125;
-		}
-	#endif
-	
-	vlposition = wpos;
-}
+    #if SHADOW_QUALITY > -1
+        // Optifine for some reason doesn't provide correct shadowMapResolution if Shadow Quality isn't 1x
+        vec2 shadowMapResolutionM = textureSize(shadowtex0, 0);
+    #endif
 
-//Volumetric light from Robobo1221 (highly modified)
-vec3 GetVolumetricRays(float depth0, float depth1, vec3 vlAlbedo, float dither, float cosS) {
-	vec3 vl = vec3(0.0);
+    #ifdef IRIS_FEATURE_FADE_VARIABLE
+        vec3 texture6 = texelFetch(colortex6, texelCoord, 0).rgb;
+        float chunkFade = texture6.b > 0.50001 ? (1.0 - texture6.b) * 2.0 : 1.0;
+        float chunkFadeM = mix(1.0, chunkFade, pow2(clamp01(lViewPos0 * 0.015))); // don't do fade very close to the player
+        lViewPos1 = mix(far, lViewPos1, chunkFadeM);
+    #endif
 
-	#if AA > 1
-		float ditherAnimate = 1.61803398875 * mod(float(frameCounter), 3600.0);
-		dither = fract(dither + ditherAnimate);
-	#endif
-	
-	#ifdef OVERWORLD
-		float visibility = 0.055;
-		if (isEyeInWater == 1) visibility = 0.19;
+    #ifdef OVERWORLD
+        vec3 vlColor = lightColor;
+        vec3 vlColorReducer = vec3(1.0);
+        float vlSceneIntensity = isEyeInWater != 1 ? vlFactor : 1.0;
 
-		float endurance = 1.20;
+        #ifdef SPECIAL_BIOME_WEATHER
+            vlSceneIntensity = mix(vlSceneIntensity, 1.0, inDry * rainFactor);
+            vlColor *= 1.0 + 0.6 * inDry * rainFactor;
+        #endif
 
-		#if LIGHT_SHAFT_MODE == 2
-			if (isEyeInWater == 0) endurance *= min(2.0 + rainStrengthS*rainStrengthS - sunVisibility * sunVisibility, 2.0);
-			else visibility *= 1.0 + 2.0 * pow(max(cosS, 0.0), 128.0) * float(sunVisibility > 0.5) * (1.0 - rainStrengthS);
+        if (sunVisibility < 0.5) {
+            vlSceneIntensity = 0.0;
+            
+            float vlMultNightModifier = (0.3 + 0.4 * rainFactor2 + 0.5 * max0(far - lViewPos1) / far);
+            #ifdef SPECIAL_PALE_GARDEN_LIGHTSHAFTS
+                vlMultNightModifier = mix(vlMultNightModifier, 1.0, inPaleGarden);
+            #endif
+            vlMult *= vlMultNightModifier;
 
-			if (endurance >= 1.0) visibility *= max((cosS + endurance) / (endurance + 1.0), 0.0);
-			else visibility *= pow(max((cosS + 1.0) / 2.0, 0.0), (11.0 - endurance*10.0));
-		#else
-			if (isEyeInWater == 0) endurance *= min(1.0 + rainStrengthS*rainStrengthS, 2.0);
-			else visibility *= 1.0 + 2.0 * pow(max(cosS, 0.0), 128.0) * float(sunVisibility > 0.5) * (1.0 - rainStrengthS);
+            vlColor = normalize(pow(vlColor, vec3(1.0 - max0(1.0 - 1.5 * nightFactor) + rainFactor)));
+            vlColor *= 0.0766 + 0.0766 * vsBrightness;
+        } else {
+            vlColorReducer = 1.0 / sqrt(vlColor);
+        }
 
-			if (endurance >= 1.0) cosS = max((cosS + endurance) / (endurance + 1.0), 0.0);
-			else cosS = pow(max((cosS + 1.0) / 2.0, 0.0), (11.0 - endurance*10.0));
-		#endif
-		#ifdef CAVE_SKY_FIX
-			visibility *= 1.0 - isEyeInCave;
-		#endif
-	#endif
-	
-	#ifdef END
-		float visibility = 0.14285;
-	#endif
+        #ifdef SPECIAL_PALE_GARDEN_LIGHTSHAFTS
+            vlSceneIntensity = mix(vlSceneIntensity, 1.0, inPaleGarden);
+            vlMult *= 1.0 + (3.0 * inPaleGarden) * (1.0 - sunVisibility);
+        #endif
 
-	if (visibility > 0.0) {
-		#ifdef END
-			float maxDist = 192.0 * (1.5 - isEyeInWater);
-		#else
-			float maxDist = 288.0;
-			if (isEyeInWater == 1) maxDist = min(288.0, shadowDistance * 0.75);
-		#endif
-		
-		vec3 worldposition = vec3(0.0);
-		vec4 vlposition = vec4(0.0);
-		
-		vec3 watercol = underwaterColor.rgb / UNDERWATER_I;
-		watercol = pow(watercol, vec3(2.3)) * 55.0;
+        float rainyNight = (1.0 - sunVisibility) * rainFactor;
+        float VdotLM = max((VdotL + 1.0) / 2.0, 0.0);
+        float VdotUmax0 = max(VdotU, 0.0);
+        float VdotUM = mix(pow2(1.0 - VdotUmax0), 1.0, 0.5 * vlSceneIntensity);
+              VdotUM = smoothstep1(VdotUM);
+              VdotUM = pow(VdotUM, min(lViewPos1 / far, 1.0) * (3.0 - 2.0 * vlSceneIntensity));
+        vlMult *= mix(VdotUM * VdotLM, 1.0, 0.4 * rainyNight) * vlTime;
+        vlMult *= mix(invNoonFactor2 * 0.875 + 0.125, 1.0, max(vlSceneIntensity, rainFactor2));
 
-		#ifdef END
-			float minDistFactor = 5.0;
-		#else
-			float minDistFactor = 11.0;
+        #if LIGHTSHAFT_QUALI == 4
+            int sampleCount = vlSceneIntensity < 0.5 ? 30 : 50;
+        #elif LIGHTSHAFT_QUALI == 3
+            int sampleCount = vlSceneIntensity < 0.5 ? 15 : 30;
+        #elif LIGHTSHAFT_QUALI == 2
+            int sampleCount = vlSceneIntensity < 0.5 ? 10 : 20;
+        #elif LIGHTSHAFT_QUALI == 1
+            int sampleCount = vlSceneIntensity < 0.5 ? 6 : 12;
+        #endif
 
-			minDistFactor *= clamp(far, 128.0, 512.0) / 192.0;
+        #ifndef TAA
+            sampleCount *= 2;
+        #endif
 
-			float fovFactor = gbufferProjection[1][1] / 1.37;
-			float x = abs(texCoord.x - 0.5);
-			x = 1.0 - x*x;
-			x = pow(x, max(3.0 - fovFactor, 0.0));
-			minDistFactor *= x;
-			maxDist *= x;
+        #ifdef LIGHTSHAFT_SMOKE
+            float totalSmoke = 0.0;
+        #endif
+    #else
+        translucentMult = sqrt(translucentMult); // Because we pow2() the vl result in composite for the End dimension
 
-			#if LIGHT_SHAFT_MODE == 2
-			#else
-				float lightBrightnessM = smoothstep(0.0, 1.0, 1.0 - pow2(1.0 - max(timeBrightness, moonBrightness)));
-			#endif
-		#endif
+        float vlSceneIntensity = 0.0;
 
-		#ifdef END
-			int sampleCount = 9;
-		#else
-			float addition = 0.5;
+        #ifndef LOW_QUALITY_ENDER_NEBULA
+            int sampleCount = 16;
+        #else
+            int sampleCount = 10;
+        #endif
+    #endif
 
-			#if LIGHT_SHAFT_MODE == 2
-				int sampleCount = 9;
-				if (isEyeInWater == 0) {
-					sampleCount = 7;
-					minDistFactor *= 0.5;
-				}
-				float sampleIntensity = 2.5;
-			#else
-				int sampleCount = 9;
-				float sampleIntensity = 1.95;
-			#endif
-			
-			#if LIGHT_SHAFT_QUALITY == 2
-				if (isEyeInWater == 0) {
-					float qualityFactor = 1.42857;
-					#if LIGHT_SHAFT_MODE == 2
-						sampleCount = 10;
-					#else
-						sampleCount = 13;
-					#endif
-					sampleIntensity /= qualityFactor;
-					minDistFactor /= 1.7; // pow(qualityFactor, 1.5)
-					addition *= qualityFactor;
-				}
-			#endif
-			#if LIGHT_SHAFT_QUALITY == 3
-				if (isEyeInWater == 0) {
-					int qualityFactor = 4;
-					sampleCount *= qualityFactor;
-					sampleIntensity /= qualityFactor;
-					minDistFactor /= 8; // pow(qualityFactor, 1.5)
-					addition *= qualityFactor;
-				}
-			#endif
-		#endif
+    float addition = 1.0;
+    float maxDist = mix(max(far, 96.0) * 0.55, 80.0, vlSceneIntensity);
 
-		for(int i = 0; i < sampleCount; i++) {
-			#ifdef END
-				float minDist = exp2(i + dither) - 0.9;
-			#else
-				float minDist = 0.0;
-				if (isEyeInWater == 0) {
-				#if LIGHT_SHAFT_MODE == 2
-					minDist = pow(i + dither + addition, 1.5) * minDistFactor;
-				#else
-					minDist = pow(i + dither + addition, 1.5) * minDistFactor * (0.3 - 0.1 * lightBrightnessM);
-				#endif	
-				} else minDist = pow2(i + dither + 0.5) * minDistFactor * 0.045;
-			#endif
+    #if WATER_FOG_MULT != 100
+        if (isEyeInWater == 1) {
+            #define WATER_FOG_MULT_M WATER_FOG_MULT * 0.01;
+            maxDist /= WATER_FOG_MULT_M;
+        }
+    #endif
 
-			//if (depth0 >= far*0.9999) break;
-			if (minDist >= maxDist) break;
+    float distMult = maxDist / (sampleCount + addition);
+    float sampleMultIntense = isEyeInWater != 1 ? 1.0 : 0.85;
 
-			if (depth1 < minDist || (depth0 < minDist && vlAlbedo == vec3(0.0))) break;
+    float viewFactor = 1.0 - 0.7 * pow2(dot(nViewPos.xy, nViewPos.xy));
 
-			GetShadowSpace(worldposition, vlposition, GetDistX(minDist), texCoord.st);
-			//vlposition.z += 0.00002;
+    float depth0 = GetDepth(z0);
+    float depth1 = GetDepth(z1);
+    #ifdef END
+        if (z0 == 1.0) depth0 = 1000.0;
+        if (z1 == 1.0) depth1 = 1000.0;
+    #endif
 
-			if (length(vlposition.xy * 2.0 - 1.0) < 1.0) {
-				vec3 vlsample = vec3(shadow2D(shadowtex0, vlposition.xyz).z);
-			
-				if (depth0 < minDist) vlsample *= vlAlbedo;
+    // Fast but inaccurate perspective distortion approximation
+    maxDist *= viewFactor;
+    distMult *= viewFactor;
 
-				#ifdef END
-					if (isEyeInWater == 1) vlsample *= watercol;
-					vl += vlsample;
-				#else
-					if (isEyeInWater == 0) {
-						#if LIGHT_SHAFT_MODE == 2
-							vl += vlsample * sampleIntensity;
-						#else
-							vlsample *= cosS;
+    #ifdef IRIS_FEATURE_FADE_VARIABLE
+        depth1 = mix(depth1, far, pow2(pow2(1.0 - chunkFadeM)));
+    #endif
 
-							vl += vlsample * sampleIntensity;
-						#endif
-					} else {
-						vlsample *= watercol;
-						float sampleFactor = sqrt(minDist / maxDist);
+    #ifdef OVERWORLD
+        float maxCurrentDist = min(depth1, maxDist);
+    #else
+        float maxCurrentDist = min(depth1, far);
+    #endif
 
-						#if LIGHT_SHAFT_MODE == 3
-							vlsample *= cosS;
-						#endif
+    for (int i = 0; i < sampleCount; i++) {
+        float currentDist = (i + dither) * distMult + addition;
 
-						vl += vlsample * sampleFactor * 0.55;
-					}
-				#endif
-			} else {
-				vl += 1.0;
-			}
-		}
-		vl = sqrt(vl * visibility);
+        if (currentDist > maxCurrentDist) break;
 
-		#ifdef END
-		#else
-			#if LIGHT_SHAFT_MODE == 2
-				if (isEyeInWater == 0) {
-					float vlPower = 1.75 - rainStrengthS + sunVisibility*0.25;
-					if (vlPower < 1.0) vlPower = 1.0;
-					vl = pow(vl, vec3(vlPower));
-				}
-			#else
-				if (isEyeInWater == 0) {
-					float vlPower = 2.0 - lightBrightnessM;
-					vl = pow(vl, vec3(vlPower));
-				}
-			#endif
-		#endif
+        vec4 viewPos = gbufferProjectionInverse * (vec4(texCoord, GetDistX(currentDist), 1.0) * 2.0 - 1.0);
+        viewPos /= viewPos.w;
+        vec4 wpos = gbufferModelViewInverse * viewPos;
+        vec3 playerPos = wpos.xyz / wpos.w;
+        #ifdef END
+            playerPos *= 512.0 / far;
+            vec4 enderBeamSample = vec4(DrawEnderBeams(VdotU, playerPos, nViewPos), 1.0);
+            enderBeamSample /= sampleCount;
+        #endif
 
-		vl *= 0.9;
-		vl += vl * dither * 0.19;
-	}
+        float shadowSample = 1.0;
+        vec3 vlSample = vec3(1.0);
+        #if SHADOW_QUALITY > -1
+            wpos = shadowModelView * wpos;
+            wpos = shadowProjection * wpos;
+            wpos /= wpos.w;
+            float distb = sqrt(wpos.x * wpos.x + wpos.y * wpos.y);
+            float distortFactor = 1.0 - shadowMapBias + distb * shadowMapBias;
+            vec4 shadowPosition = DistortShadow(wpos,distortFactor);
+            //shadowPosition.z += 0.0001;
 
-	#ifdef GBUFFER_CODING
-		vl = vec3(0.0);
-	#endif
-	
-	return vl;
+            #ifdef OVERWORLD
+                float percentComplete = currentDist / maxDist;
+                float sampleMult = mix(percentComplete * 3.0, sampleMultIntense, max(rainFactor, vlSceneIntensity));
+                if (currentDist < 5.0) sampleMult *= smoothstep1(clamp(currentDist / 5.0, 0.0, 1.0));
+                sampleMult /= sampleCount;
+            #endif
+
+            if (length(shadowPosition.xy * 2.0 - 1.0) < 1.0) {
+                // 28A3DK6 We need to use texelFetch here or a lot of Nvidia GPUs can't get a valid value
+                shadowSample = texelFetch(shadowtex0, ivec2(shadowPosition.xy * shadowMapResolutionM), 0).x;
+                shadowSample = clamp((shadowSample-shadowPosition.z)*65536.0,0.0,1.0);
+
+                vlSample = vec3(shadowSample);
+
+                #if SHADOW_QUALITY >= 1
+                    if (shadowSample == 0.0) {
+                        float testsample = shadow2D(shadowtex1, shadowPosition.xyz).z;
+                        if (testsample == 1.0) {
+                            vec3 colsample = texture2D(shadowcolor1, shadowPosition.xy).rgb * 4.0;
+                            colsample *= colsample;
+                            vlSample = colsample;
+                            shadowSample = 1.0;
+                            #ifdef OVERWORLD
+                                vlSample *= vlColorReducer;
+                            #endif
+                        }
+                    } else {
+                        #ifdef OVERWORLD
+                            // For water-tinting the water surface when observed from below the surface
+                            if (translucentMult != vec3(1.0) && currentDist > depth0) {
+                                vec3 tinter = vec3(1.0);
+                                if (isEyeInWater == 1) {
+                                    vec3 translucentMultM = translucentMult * 2.8;
+                                    tinter = pow(translucentMultM, vec3(sunVisibility * 3.0 * clamp01(playerPos.y * 0.03)));
+                                } else {
+                                    tinter = 0.1 + 0.9 * pow2(pow2(translucentMult * 1.7));
+                                }
+                                vlSample *= mix(vec3(1.0), tinter, clamp01(oceanAltitude - cameraPosition.y));
+                            }
+                        #endif
+
+                        if (isEyeInWater == 1 && translucentMult == vec3(1.0)) vlSample = vec3(0.0);
+                    }
+                #endif
+            }
+        #endif
+
+        if (currentDist > depth0) vlSample *= translucentMult;
+
+        #ifdef OVERWORLD
+            #ifdef LIGHTSHAFT_SMOKE
+                vec3 smokePos = 0.0015 * (playerPos + cameraPosition);
+                vec3 smokeWind = frameTimeCounter * vec3(0.0, 0.001, -0.002);
+                float smoke = 0.65 * Noise3D(smokePos + smokeWind)
+                            + 0.25 * Noise3D((smokePos - smokeWind) * 3.0)
+                            + 0.10 * Noise3D((smokePos + smokeWind) * 9.0);
+                smoke = smoothstep1(smoothstep1(smoothstep1(smoke)));
+                totalSmoke += smoke * shadowSample * sampleMult;
+            #endif
+
+            volumetricLight += vec4(vlSample, shadowSample) * sampleMult;
+        #else
+            volumetricLight += vec4(vlSample, shadowSample) * enderBeamSample;
+        #endif
+    }
+
+    #ifdef LIGHTSHAFT_SMOKE
+        volumetricLight *= pow(totalSmoke / volumetricLight.a, min(1.0 - volumetricLight.a, 0.5));
+        volumetricLight.rgb /= pow(0.5, 1.0 - volumetricLight.a);
+    #endif
+
+    // Decision of Intensity for Scene Aware Light Shafts //
+    #if defined OVERWORLD && LIGHTSHAFT_BEHAVIOUR == 1 && SHADOW_QUALITY >= 1
+        if (viewWidth + viewHeight - gl_FragCoord.x - gl_FragCoord.y < 1.5) {
+            if (frameCounter % int(0.06666 / frameTimeSmooth + 0.5) == 0) { // Change speed is not too different above 10 fps
+                int salsX = 5;
+                int salsY = 5;
+                float heightThreshold = 6.0;
+
+                vec2 viewM = 1.0 / vec2(salsX, salsY);
+                float salsSampleSum = 0.0;
+                int salsSampleCount = 0;
+                for (float i = 0.25; i < salsX; i++) {
+                    for (float h = 0.45; h < salsY; h++) {
+                        vec2 coord = 0.3 + 0.4 * viewM * vec2(i, h);
+                        ivec2 icoord = ivec2(coord * shadowMapResolutionM);
+                        float salsSample = texelFetch(shadowtex0, icoord, 0).x; // read 28A3DK6
+                        if (salsSample < 0.55) {
+                            float sampledHeight = texture2D(shadowcolor1, coord).a;
+                            if (sampledHeight > 0.0) {
+                                sampledHeight = max0(sampledHeight - 0.25) / 0.05; // consistencyMEJHRI7DG
+                                salsSampleSum += sampledHeight;
+                                salsSampleCount++;
+                            }
+                        }
+                    }
+                }
+
+                float salsCheck = salsSampleSum / salsSampleCount;
+                int reduceAmount = 2;
+
+                int skyCheck = 0;
+                for (float i = 0.1; i < 1.0; i += 0.2) {
+                    skyCheck += int(texelFetch(depthtex0, ivec2(view.x * i, view.y * 0.9), 0).x == 1.0);
+                }
+                if (skyCheck >= 4) {
+                    salsCheck = 0.0;
+                    reduceAmount = 3;
+                }
+
+                if (salsCheck > heightThreshold) {
+                    vlFactor = min(vlFactor + OSIEBCA, 1.0);
+                } else {
+                    vlFactor = max(vlFactor - OSIEBCA * reduceAmount, 0.0);
+                }
+            }
+        } else vlFactor = 0.0;
+        //if (gl_FragCoord.y < 50) color.rgb = vec3(1,0,1) * float(salsCheck / heightThreshold > gl_FragCoord.x / 1920.0);
+
+        /*for (float i = 0.25; i < salsX; i++) {
+            for (float h = 0.45; h < salsY; h++) {
+                if (length(texCoord - (0.3 + 0.4 * viewM * vec2(i, h))) < 0.01) return vec4(1,0,1,1);
+            }
+        }*/
+    #endif
+
+    #ifdef OVERWORLD
+        vlColor = pow(vlColor, vec3(0.5 + (0.5 + LIGHTSHAFT_SUNSET_SATURATION * sunVisibility) * invNoonFactor * invRainFactor + 0.3 * rainFactor));
+        vlColor *= 1.0 - (0.3 + 0.3 * noonFactor) * rainFactor - 0.5 * rainyNight + sunVisibility * pow2(invNoonFactor) * invRainFactor;
+
+        #if LIGHTSHAFT_DAY_I != 100 || LIGHTSHAFT_NIGHT_I != 100 || LIGHTSHAFT_RAIN_I != 100
+            #define LIGHTSHAFT_DAY_IM LIGHTSHAFT_DAY_I * 0.01
+            #define LIGHTSHAFT_NIGHT_IM LIGHTSHAFT_NIGHT_I * 0.01
+            #define LIGHTSHAFT_RAIN_IM LIGHTSHAFT_RAIN_I * 0.01
+
+            if (isEyeInWater == 0) {
+                #if LIGHTSHAFT_DAY_I != 100 || LIGHTSHAFT_NIGHT_I != 100
+                    vlColor.rgb *= mix(LIGHTSHAFT_NIGHT_IM, LIGHTSHAFT_DAY_IM, sunVisibility);
+                #endif
+                #if LIGHTSHAFT_RAIN_I != 100
+                    vlColor.rgb *= mix(1.0, LIGHTSHAFT_RAIN_IM, rainFactor);
+                #endif
+            }
+        #endif
+
+        volumetricLight.rgb *= vlColor;
+    #endif
+
+    volumetricLight.rgb *= vlMult;
+    volumetricLight = max(volumetricLight, vec4(0.0));
+
+    #if defined DISTANT_HORIZONS && defined OVERWORLD
+        if (isEyeInWater == 0) {
+            float lViewPosM = lViewPos0;
+            if (z0 >= 1.0) {
+                float z0DH = texelFetch(dhDepthTex, texelCoord, 0).r;
+                vec4 screenPosDH = vec4(texCoord, z0DH, 1.0);
+                vec4 viewPosDH = dhProjectionInverse * (screenPosDH * 2.0 - 1.0);
+                viewPosDH /= viewPosDH.w;
+                lViewPosM = length(viewPosDH.xyz);
+            }
+            lViewPosM = min(lViewPosM, renderDistance * 0.6);
+
+            float dhVlStillIntense = max(max(vlSceneIntensity, rainFactor), nightFactor * 0.5);
+
+            volumetricLight *= mix(0.0003 * lViewPosM, 1.0, dhVlStillIntense);
+        }
+    #endif
+
+    #ifdef END
+        #ifndef DISTANT_HORIZONS
+            volumetricLight *= sqrt1(min1(lViewPos1 * 2.0 / 512.0));
+        #else
+            volumetricLight *= min1(lViewPos1 * 3.0 / renderDistance);
+        #endif
+    #endif
+
+    return volumetricLight;
 }

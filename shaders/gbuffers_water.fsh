@@ -1,8 +1,7 @@
-#version 130 
+#version 130
 
-#define GBUFFERS_WATER
+#define FRAGMENT_SHADER
 #define OVERWORLD
-#define WATER
-#define FSH
+#define GBUFFERS_WATER
 
 #include "/program/gbuffers_water.glsl"

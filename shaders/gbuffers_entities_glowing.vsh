@@ -1,7 +1,8 @@
-#version 130 
+#version 130
 
-#define GBUFFERS_ENTITIES_GLOWING
+#define VERTEX_SHADER
 #define OVERWORLD
-#define VSH
+#define GBUFFERS_ENTITIES
+#define GBUFFERS_ENTITIES_GLOWING
 
 #include "/program/gbuffers_entities.glsl"
