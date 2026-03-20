@@ -295,6 +295,16 @@ void main() {
         float blockerCount = binfo.y;
         fragColor = vec4(vec3(clamp(blockerCount / 16.0, 0.0, 1.0)), baseColor.a);
         return;
+    } else if (debugMode == 9) {
+        // Diagnostic: compare computed shadowDepth against INVERTED sampledDepth
+        // This helps test whether the shadow map depth convention is reversed.
+        vec2 sc = clamp(shadowCoord, vec2(0.0), vec2(1.0));
+        float sampledDepth = texture(shadowtex0, sc).x;
+        float invSample = 1.0 - sampledDepth;
+        float diffInv = shadowDepth - invSample;
+        diffInv = clamp(diffInv * 10.0, 0.0, 1.0);
+        fragColor = vec4(vec3(diffInv), baseColor.a);
+        return;
     }
 
     // Check if fragment is within shadow map bounds
