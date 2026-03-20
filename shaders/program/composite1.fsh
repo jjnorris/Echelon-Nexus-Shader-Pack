@@ -1,5 +1,5 @@
 // ============================================================================
-// COMPOSITE1 SHADER - Phase 2: Post-Processing Effects
+// COMPOSITE1 FRAGMENT SHADER - Phase 2: Post-Processing Effects
 // ============================================================================
 //
 // References:
@@ -8,36 +8,9 @@
 //
 // Purpose: Post-processing effects layer (bloom, tone mapping, color grading)
 // Input: colortex0 (scene color from composite pass)
-// Input: colortex1 (volumetric/lighting data if available)
 // Output: Scene with post-processing applied
 
-#ifndef INCLUDED_COMPOSITE1
-#define INCLUDED_COMPOSITE1
-
-// Include library functions
 #include "/lib/math.glsl"
-
-// ============================================================================
-// VERTEX SHADER
-// ============================================================================
-
-#ifdef VSH
-
-varying vec2 texCoord;
-
-void main() {
-	// Simple full-screen quad vertex positioning
-	gl_Position = ftransform();
-	texCoord = gl_MultiTexCoord0.xy;
-}
-
-#endif // VSH
-
-// ============================================================================
-// FRAGMENT SHADER
-// ============================================================================
-
-#ifdef FSH
 
 varying vec2 texCoord;
 
@@ -89,7 +62,3 @@ void main() {
 	/*DRAWBUFFERS:0*/
 	gl_FragData[0] = vec4(color, 1.0);
 }
-
-#endif // FSH
-
-#endif // INCLUDED_COMPOSITE1
