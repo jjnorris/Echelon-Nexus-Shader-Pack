@@ -124,7 +124,7 @@ float pcssShadowSample(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
     } else if (filterSize < 0.15) {
         sampleCount = 16;
     } else {
-        sampleCount = 32;
+        sampleCount = 16;
     }
 
     for (int i = 0; i < 32; i++) {
@@ -149,7 +149,7 @@ float pcssShadow(sampler2D shadowMap, vec2 sampleCoord, float receiverDepth,
                  float lightSize, float searchRadius, int invert) {
     // Stage 1: Blocker search
     vec3 blockerInfo = pcssBlockerSearch(shadowMap, sampleCoord, receiverDepth,
-                                          searchRadius, 16, invert);
+                                          searchRadius, 8, invert);
     float avgBlockerDepth = blockerInfo.x;
     float blockerCount = blockerInfo.y;
 
@@ -159,7 +159,7 @@ float pcssShadow(sampler2D shadowMap, vec2 sampleCoord, float receiverDepth,
 
     // Stage 2: Penumbra estimation
     float penumbraSize = pcssComputePenumbra(avgBlockerDepth, receiverDepth, lightSize);
-    penumbraSize = clamp(penumbraSize, 0.0, 0.1);
+    penumbraSize = clamp(penumbraSize, 0.0, 0.08);
 
     // Stage 3: PCF filtering
     float shadow = pcssShadowSample(shadowMap, sampleCoord, receiverDepth,
@@ -240,7 +240,7 @@ void main() {
     // Reduced defaults and derivative-based search radius to use normalized
     // shadow-map UV units instead of large absolute offsets that sampled
     // outside the shadow map and produced fully-lit results.
-    float lightSize = 0.3;        // Light angular size (smaller => tighter penumbra)
+    float lightSize = 0.25;        // Light angular size (smaller => tighter penumbra)
     float baseSearchRadius = 0.01; // Base search radius in normalized shadow UV
 
     // Approximate per-pixel footprint in shadow UV using derivatives.
@@ -252,7 +252,7 @@ void main() {
     texelSize = max(texelSize, 1e-5);
 
     // Scale the search radius relative to the local UV footprint.
-    float searchRadius = max(baseSearchRadius, texelSize * 8.0);
+    float searchRadius = max(baseSearchRadius, texelSize * 4.0);
 
     // Auto-detect shadow-map depth convention per-fragment by sampling the
     // shadow map at the center and comparing which representation (normal or

@@ -91,7 +91,7 @@ float pcssShadowSample(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
     } else if (filterSize < 0.15) {
         sampleCount = 16;
     } else {
-        sampleCount = 32;
+        sampleCount = 16;
     }
 
     for (int i = 0; i < 32; i++) {
@@ -112,7 +112,7 @@ float pcssShadowSample(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
 float pcssShadow(sampler2D shadowMap, vec2 sampleCoord, float receiverDepth,
                  float lightSize, float searchRadius, int invert) {
     vec3 blockerInfo = pcssBlockerSearch(shadowMap, sampleCoord, receiverDepth,
-                                          searchRadius, 16, invert);
+                                          searchRadius, 8, invert);
     float avgBlockerDepth = blockerInfo.x;
     float blockerCount = blockerInfo.y;
 
@@ -121,7 +121,7 @@ float pcssShadow(sampler2D shadowMap, vec2 sampleCoord, float receiverDepth,
     }
 
     float penumbraSize = pcssComputePenumbra(avgBlockerDepth, receiverDepth, lightSize);
-    penumbraSize = clamp(penumbraSize, 0.0, 0.1);
+    penumbraSize = clamp(penumbraSize, 0.0, 0.08);
 
     float shadow = pcssShadowSample(shadowMap, sampleCoord, receiverDepth,
                                     penumbraSize, 32, invert);
@@ -154,13 +154,13 @@ void main() {
     vec2 shadowCoord = shadowData.xy;
     float shadowDepth = shadowData.z;
 
-    float lightSize = 0.3;
+    float lightSize = 0.25;
     float baseSearchRadius = 0.01;
     vec2 ddx = dFdx(shadowCoord);
     vec2 ddy = dFdy(shadowCoord);
     float texelSize = max(length(ddx), length(ddy));
     texelSize = max(texelSize, 1e-5);
-    float searchRadius = max(baseSearchRadius, texelSize * 8.0);
+    float searchRadius = max(baseSearchRadius, texelSize * 4.0);
 
     // Auto-detect shadow-map depth convention per-fragment
     vec2 scClamp = clamp(shadowCoord, vec2(0.0), vec2(1.0));
