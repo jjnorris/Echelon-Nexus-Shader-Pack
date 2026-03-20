@@ -1,1 +1,6 @@
-#include "/program/gbuffers_textured.vsh"
+#version 130 
+
+#define OVERWORLD
+#define VSH
+
+#include "/program/gbuffers_textured.glsl"
