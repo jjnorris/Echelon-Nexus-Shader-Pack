@@ -1,3 +1,11 @@
 #version 400 compatibility
-#define FSH
-#include "/program/gbuffers_skybasic.glsl"
+
+/* RENDERTARGETS: 0 */
+
+in vec4 tint;
+
+out vec4 fragColor;
+
+void main() {
+	fragColor = tint;
+}
