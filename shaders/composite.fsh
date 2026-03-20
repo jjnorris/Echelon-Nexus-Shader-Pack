@@ -21,7 +21,7 @@ uniform mat4 shadowProjection;
 uniform mat4 shadowModelView;
 int debugMode = 4; // 0=off,1=depth,2=worldPos,3=shadowCoord,4=shadow value
 // Toggle to invert sampled shadow-map depth (1=invert, 0=normal)
-int shadowDepthInvert = 1;
+int shadowDepthInvert = 0;
 // Small constant bias added to sampled shadow-map depth to avoid self-occlusion
 // and reduce false-positive blockers caused by precision/format mismatches.
 float shadowBias = 0.002;
