@@ -128,6 +128,15 @@ vec3 rgbToHsl(vec3 rgb) {
 	return vec3(h, s, l);
 }
 
+float hue2rgb(float p, float q, float t) {
+	if (t < 0.0) t += 1.0;
+	if (t > 1.0) t -= 1.0;
+	if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;
+	if (t < 1.0 / 2.0) return q;
+	if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
+	return p;
+}
+
 // HSL to RGB conversion
 vec3 hslToRgb(vec3 hsl) {
 	vec3 rgb;
@@ -145,15 +154,6 @@ vec3 hslToRgb(vec3 hsl) {
 	}
 
 	return rgb;
-}
-
-float hue2rgb(float p, float q, float t) {
-	if (t < 0.0) t += 1.0;
-	if (t > 1.0) t -= 1.0;
-	if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;
-	if (t < 1.0 / 2.0) return q;
-	if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
-	return p;
 }
 
 // ============================================================================
