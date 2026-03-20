@@ -7,20 +7,18 @@
 
 varying vec2 texCoord;
 
-uniform sampler2D gcolor;       // Albedo + block light
-uniform sampler2D gdepth;       // Linear depth
-uniform sampler2D gnormal;      // Normal + smoothness
-uniform sampler2D gaux1;        // Material properties
-
-/* RENDERTARGETS:0 */
+uniform sampler2D colortex0;    // Albedo + block light (from gbuffers)
+uniform sampler2D colortex1;    // Linear depth
+uniform sampler2D colortex2;    // Normal + smoothness
+uniform sampler2D colortex4;    // Material properties
 
 void main() {
 	// Phase 1: Simple pass-through composite
-	// Read albedo from G-Buffer
-	vec4 albedo = texture2D(gcolor, texCoord);
+	// Read albedo from G-Buffer (colortex0)
+	vec4 albedo = texture2D(colortex0, texCoord);
 
 	// Read material properties
-	vec4 material = texture2D(gaux1, texCoord);
+	vec4 material = texture2D(colortex4, texCoord);
 	float skyLight = material.b;
 
 	// Basic lighting: albedo * (block light + sky light contribution)
@@ -29,6 +27,6 @@ void main() {
 	// Add minimal sky lighting (0.5 = 50% brightness from sky)
 	color *= (albedo.a + skyLight * 0.5);
 
-	// Output to screen
+	// Output to screen (becomes colortex0 for next pass)
 	gl_FragColor = vec4(color, 1.0);
 }

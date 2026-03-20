@@ -7,20 +7,8 @@
 
 varying vec2 texCoord;
 
-// Composite output from previous pass
-uniform sampler2D colortex0;
-
 void main() {
-	// Sample composited color
-	vec3 color = texture2D(colortex0, texCoord).rgb;
-
-	// ===== GAMMA CORRECTION =====
-	// Convert from linear to sRGB for display
-	color = pow(max(color, 0.0), vec3(1.0 / 2.2));
-
-	// Clamp to valid output range
-	color = clamp(color, 0.0, 1.0);
-
-	// Output to screen
-	gl_FragColor = vec4(color, 1.0);
+	// For now, just output magenta to verify this pass runs
+	// If you see magenta on screen, the pipeline is working
+	gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
 }
