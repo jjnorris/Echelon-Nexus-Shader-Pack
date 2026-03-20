@@ -2,9 +2,12 @@
 // Fallback for programs without textures
 // Based on Iris pipeline for Minecraft 1.21.11
 
-#ifdef VSH
-
+// Global varyings - visible to both vertex and fragment stages
 out vec4 tint;
+
+/* RENDERTARGETS: 0 */
+
+#ifdef VSH
 
 void main() {
 	tint = gl_Color;
@@ -14,10 +17,6 @@ void main() {
 #endif
 
 #ifdef FSH
-
-in vec4 tint;
-
-/* RENDERTARGETS: 0 */
 
 out vec4 fragColor;
 
