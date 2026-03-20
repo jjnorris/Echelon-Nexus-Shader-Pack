@@ -106,7 +106,7 @@ vec2 haltonSequence(int sampleIndex) {
  * Produces a disk-shaped pattern that avoids clustering
  * Used for shadow sampling (PCSS in Phase 2)
  *
- * Golden angle = 2π / φ² ≈ 2.39996... radians
+ * Golden angle = 2 /   2.39996... radians
  * This angle ensures even spacing around a circle
  *
  * @param sampleIndex Which sample (0 to numSamples-1)
@@ -172,7 +172,7 @@ float blueNoiseDither(vec2 pixelCoord) {
  * @return 2D texture offset for shadow sample
  */
 vec2 shadowSampleOffset(int sampleIndex, int numSamples, float radius, vec2 pixelCoord) {
-	float rotation = random(pixelCoord) * 6.28318;  // 2π radians
+	float rotation = random(pixelCoord) * 6.28318;  // 2 radians
 	return rotatedPoissonDisk(sampleIndex, numSamples, radius, rotation);
 }
 
@@ -204,3 +204,4 @@ vec2 antiAliasSample(int sampleIndex, int numSamples, vec2 pixelCoord) {
 }
 
 #endif // INCLUDED_SAMPLING
+

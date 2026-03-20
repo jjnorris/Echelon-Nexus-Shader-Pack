@@ -93,4 +93,50 @@ Where to ask for help
 ---------------------
 - Repo owner / maintainer: `jjnorris` (PR: https://github.com/jjnorris/Echelon-Nexus-Shader-Pack/pull/1)
 
+External References — Always Check
+---------------------------------
+- Photon/Complementary Reimagined shader repos: compare shadow/PCF/PCSS approaches and sample counts.
+- Iris shaderpack documentation and compatibility notes (Iris versions and shader API changes).
+- Minecraft shaderpack constraints for 1.21.11 (texture limits, varying rules, semantics).
+- GLSL reference /OpenGL specs for targeted `#version` (130 vs 330).
+- GPU vendor docs for precision/format caveats (NVIDIA/AMD/Intel driver notes).
+
+Mandatory Pre-edit Checklist
+----------------------------
+Before changing shaders or adding presets, verify all items below and record the results in the PR description:
+
+- Target GLSL version: confirm whether change targets `#version 130` (compat) or a newer `#version 330` preset. If adding `gl330` codepath, provide a fallback for older drivers.
+- Samplers: ensure samplers are declared only in fragment shaders (`.fsh`).
+- Varyings: declare varyings at global scope and match types/names between `.vsh` and `.fsh`.
+- Loop bounds: loops must use constant upper bounds; avoid dynamic loop termination conditions.
+- Texture sample budget: ensure each pass uses <= 32 texture samples. Document sample counts in the PR.
+- Shadow sampling: shadow textures must be sampled in `composite.fsh` only; if caching shadow results, write to a color target in composite pass.
+- Precision: use `highp` for depth/position math in `#version 130`; gl330 presets may omit precision qualifiers.
+- Depth convention: verify shadow-map depth convention (some drivers/engines invert stored depth). Use debug modes (7/9) to confirm and set `shadowDepthInvert` accordingly.
+- BOM/Encoding: save GLSL files as UTF-8 without BOM. Re-run a shader reload to catch preprocessing issues.
+- Automated tests: run `scripts/select-shader-preset.ps1` and `scripts/build-pack-variant.ps1` locally to generate a pack variant and validate the build.
+
+Verification Steps (required before merge)
+----------------------------------------
+1. Ensure shader compiles/loads with Iris + Minecraft 1.21.11 on a representative GPU or via CI image if available.
+2. Run minimal validation: install the pack, reload shaders (F3+T), then collect `%APPDATA%\\.minecraft\\logs\\latest.log` and confirm no shader compilation errors.
+3. Produce performance measurements (30-frame mean) for Baseline and PCSS on an RTX 3060 (HIGH profile) and include numbers in PR.
+4. Include screenshots for `debugMode=4` (PCSS value) and any diagnostic modes used to diagnose depth conventions.
+
+When to Add a New Pack Variant
+--------------------------------
+- Add a new preset or pack variant when you need shader features that are not portable to `#version 130` (e.g., modern GLSL constructs), or when a dramatically different sample budget is required for low-end GPUs.
+- For each variant add: a `shaders/presets/<preset>.fsh`, an entry in `README.md` mapping hardware  preset, and update `scripts/select-shader-preset.ps1`.
+
+Release & Packaging
+-------------------
+- Use `scripts/build-pack-variant.ps1 -preset <name>` to create a zipped release for a given preset.
+- Tag releases with `preset-<name>` and include measured frame times and the test scene used in the release notes.
+
+Agent Behavior Notes (stronger)
+-------------------------------
+- ALWAYS run repo-wide text search for `sampler` / `precision` / `#version` before edits and follow the `Mandatory Pre-edit Checklist`.
+- ALWAYS consult the listed external references for shadow/PCF/PCSS best practices before changing PCSS code.
+- When adding a `gl330` preset, add clear fallback behavior and document risks in the PR. Do not remove `#version 130` compatibility without explicit approval.
+
 Keep this file concise — link to deeper docs rather than duplicating them.

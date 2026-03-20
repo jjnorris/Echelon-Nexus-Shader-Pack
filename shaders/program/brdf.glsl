@@ -4,7 +4,7 @@
    Phase 1: Stub for vanilla lighting
    Phase 2+: Cook-Torrance BRDF with GGX microfacet distribution
 
-   Reference: Akenine-Möller et al., "Real-Time Rendering, 4th Edition"
+   Reference: Akenine-Mller et al., "Real-Time Rendering, 4th Edition"
    Paper: "Microfacet Models for Refraction through Rough Surfaces"
    Authors: Bruce Walter, Stephen M. Westin, Henrik Wann Jensen
 
@@ -94,7 +94,7 @@ float geometrySmith(float nDotL, float nDotV, float roughness) {
  * Combines Fresnel, Distribution, and Geometry terms to calculate
  * specular reflection. The overall BRDF is:
  *
- *   f = kd * (c / π) + ks * (F * D * G / (4 * (nL) * (nV)))
+ *   f = kd * (c / ) + ks * (F * D * G / (4 * (nL) * (nV)))
  *
  * Where:
  *   kd = diffuse coefficient (energy conservation)
@@ -137,3 +137,4 @@ float energyConserve(float metallic) {
 }
 
 #endif // INCLUDED_BRDF
+

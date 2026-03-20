@@ -9,7 +9,7 @@
    These techniques add surface detail without increasing geometry complexity.
 
    Reference: "Steep Parallax Mapping with Accurate Silhouettes"
-   Authors: Vaclav Skala, Jan Martínek
+   Authors: Vaclav Skala, Jan Martnek
 
    ============================================================================= */
 
@@ -219,3 +219,4 @@ vec4 chromaticAberration(vec2 texCoord, float aberration, sampler2D sampler) {
 }
 
 #endif // INCLUDED_DISTORT
+

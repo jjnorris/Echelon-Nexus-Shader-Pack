@@ -24,7 +24,8 @@ $content = Get-Content $file -Raw
 if ($mode -eq 0) {
     # Restore to uniform declaration
     $new = [regex]::Replace($content, '(?m)^[ \t]*(?:int|uniform\s+int)\s+debugMode\s*(?:=\s*\d+\s*)?;', 'uniform int debugMode;')
-} else {
+}
+else {
     # Replace any existing declaration with a constant int initializer
     $new = [regex]::Replace($content, '(?m)^[ \t]*(?:int|uniform\s+int)\s+debugMode\s*(?:=\s*\d+\s*)?;', "int debugMode = $mode;")
 }
@@ -32,6 +33,7 @@ if ($mode -eq 0) {
 if ($new -ne $content) {
     Set-Content -Path $file -Value $new -Encoding UTF8
     Write-Host "Updated debugMode to $mode in $file"
-} else {
+}
+else {
     Write-Host "No change needed; debugMode already set to requested value."
 }

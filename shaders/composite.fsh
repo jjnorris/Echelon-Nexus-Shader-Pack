@@ -1,4 +1,4 @@
-﻿#version 130
+#version 130
 precision highp float;
 // Saved without BOM to avoid GLSL preprocessor errors
 // Phase 2 PCSS integration completed: reconstructWorldPosition, projectToShadowSpace, PCSS usage.
@@ -236,7 +236,7 @@ void main() {
     vec2 shadowCoord = shadowData.xy;
     float shadowDepth = shadowData.z;
 
-    // PCSS parameters (configurable) â€” declared early to allow debug sampling
+    // PCSS parameters (configurable)  declared early to allow debug sampling
     // Reduced defaults and derivative-based search radius to use normalized
     // shadow-map UV units instead of large absolute offsets that sampled
     // outside the shadow map and produced fully-lit results.
@@ -329,6 +329,7 @@ void main() {
     // Output final color
     fragColor = vec4(shadowed, baseColor.a);
 }
+
 
 
 

@@ -132,7 +132,7 @@ vec3 pcssBlockerSearch(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
  * Based on geometric relationship between light size, occluder distance,
  * and receiver distance.
  *
- * Physics: Larger distance from occluder → larger penumbra
+ * Physics: Larger distance from occluder  larger penumbra
  *
  * Formula: penumbra_width = (receiver_dist - blocker_dist) / blocker_dist * light_size
  *
@@ -328,3 +328,4 @@ vec3 applyColoredShadow(vec3 shadowColor, float shadowAmount) {
 }
 
 #endif // INCLUDED_PCSS
+
