@@ -19,6 +19,8 @@ uniform mat4 gbufferModelViewInverse;
 uniform mat4 shadowProjection;
 uniform mat4 shadowModelView;
 int debugMode = 7; // 0=off,1=depth,2=worldPos,3=shadowCoord,4=shadow value
+// Toggle to invert sampled shadow-map depth (1=invert, 0=normal)
+int shadowDepthInvert = 1;
 // Small constant bias added to sampled shadow-map depth to avoid self-occlusion
 // and reduce false-positive blockers caused by precision/format mismatches.
 float shadowBias = 0.002;
@@ -74,6 +76,7 @@ vec3 pcssBlockerSearch(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
         samplePos = clamp(samplePos, vec2(0.0), vec2(1.0));
 
         float sampledDepth = texture(shadowMap, samplePos).x;
+        if (shadowDepthInvert == 1) sampledDepth = 1.0 - sampledDepth;
         if (sampledDepth + shadowBias < receiverDepth) {
             avgBlockerDepth += sampledDepth;
             blockerCount += 1.0;
@@ -131,6 +134,7 @@ float pcssShadowSample(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
         samplePos = clamp(samplePos, vec2(0.0), vec2(1.0));
 
         float sampledDepth = texture(shadowMap, samplePos).x;
+        if (shadowDepthInvert == 1) sampledDepth = 1.0 - sampledDepth;
         shadow += ((sampledDepth + shadowBias) >= receiverDepth) ? 1.0 : 0.0;
     }
 
