@@ -175,6 +175,15 @@ void main() {
         return;
     }
 
+    else if (debugMode == 10) {
+        vec2 sc = clamp(shadowCoord, vec2(0.0), vec2(1.0));
+        float sampledDepth = texture(shadowtex0, sc).x;
+        float invSample = 1.0 - sampledDepth;
+        float occl = clamp((shadowDepth - (sampledDepth + shadowBias)) * 10.0, 0.0, 1.0);
+        fragColor = vec4(vec3(sampledDepth, invSample, occl), baseColor.a);
+        return;
+    }
+
     if (shadowCoord.x < 0.0 || shadowCoord.x > 1.0 || shadowCoord.y < 0.0 || shadowCoord.y > 1.0) {
         fragColor = baseColor; return;
     }

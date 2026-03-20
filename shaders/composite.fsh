@@ -281,7 +281,7 @@ void main() {
         fragColor = vec4(vec3(shadowCoord, 0.0), baseColor.a);
         return;
     } else if (debugMode == 4) {
-        float debugShadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius);
+        float debugShadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius, fragInvert);
         fragColor = vec4(vec3(debugShadow), baseColor.a);
         return;
     } else if (debugMode == 5) {
@@ -319,6 +319,17 @@ void main() {
         float diffInv = shadowDepth - invSample;
         diffInv = clamp(diffInv * 10.0, 0.0, 1.0);
         fragColor = vec4(vec3(diffInv), baseColor.a);
+        return;
+    }
+
+    else if (debugMode == 10) {
+        // Combined diagnostic: R = sampled depth, G = inverted sampled depth,
+        // B = occlusion indicator (shadowDepth - sampledDepth - bias scaled)
+        vec2 sc = clamp(shadowCoord, vec2(0.0), vec2(1.0));
+        float sampledDepth = texture(shadowtex0, sc).x;
+        float invSample = 1.0 - sampledDepth;
+        float occl = clamp((shadowDepth - (sampledDepth + shadowBias)) * 10.0, 0.0, 1.0);
+        fragColor = vec4(vec3(sampledDepth, invSample, occl), baseColor.a);
         return;
     }
 
