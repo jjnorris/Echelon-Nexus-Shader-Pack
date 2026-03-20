@@ -1,52 +1,40 @@
-// Minimal Phase 1: Render textured geometry (particles)
-// Iris + Minecraft 1.21.11
+// Echelon Nexus - Phase 1: Render textured geometry (particles)
+// Based on Iris pipeline for Minecraft 1.21.11
+// Reference: Photon Shaders gbuffers pattern
 
 #ifdef VSH
 
-// Vertex attributes (MC 1.17+)
-attribute vec3 vaPosition;
-attribute vec4 vaColor;
-attribute vec2 vaUV0;
-
-// Uniforms
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferProjection;
-
-// Output
-varying vec2 texCoord;
-varying vec4 vertexColor;
+out vec2 uv;
+out vec2 light_levels;
+out vec4 tint;
 
 void main() {
-	// Transform to screen space
-	gl_Position = gbufferProjection * (gbufferModelView * vec4(vaPosition, 1.0));
-
-	// Pass through texture coordinates and vertex color
-	texCoord = vaUV0;
-	vertexColor = vaColor;
+	uv = gl_MultiTexCoord0.xy;
+	light_levels = gl_MultiTexCoord1.xy / 240.0;
+	tint = gl_Color;
+	gl_Position = gl_ProjectionMatrix * (gl_ModelViewMatrix * gl_Vertex);
 }
 
 #endif
 
 #ifdef FSH
 
-// Sampler
-uniform sampler2D texture;
+in vec2 uv;
+in vec2 light_levels;
+in vec4 tint;
 
-// Input
-varying vec2 texCoord;
-varying vec4 vertexColor;
+uniform sampler2D gtexture;
+uniform sampler2D lightmap;
 
-/* RENDERTARGETS:0 */
+/* RENDERTARGETS: 0 */
+
+out vec4 fragColor;
 
 void main() {
-	// Sample texture with vertex color tint
-	vec4 color = texture2D(texture, texCoord) * vertexColor;
-
-	// Discard fully transparent pixels
+	vec4 color = texture(gtexture, uv) * tint;
 	if (color.a < 0.1) discard;
-
-	// Output to G-Buffer
-	gl_FragData[0] = color;
+	color *= texture(lightmap, light_levels);
+	fragColor = color;
 }
 
 #endif

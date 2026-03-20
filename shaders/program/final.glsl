@@ -1,31 +1,30 @@
-// Minimal Phase 1: Final output to screen
-// Basic gamma correction and output
+// Echelon Nexus - Phase 1: Final output
+// Gamma correction and screen output
+// Based on Iris pipeline for Minecraft 1.21.11
 
 #ifdef VSH
 
-varying vec2 texCoord;
+out vec2 uv;
 
 void main() {
-	gl_Position = gl_Vertex;
-	texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
+	gl_Position = gl_ProjectionMatrix * (gl_ModelViewMatrix * gl_Vertex);
+	uv = gl_MultiTexCoord0.xy;
 }
 
 #endif
 
 #ifdef FSH
 
+in vec2 uv;
+
 uniform sampler2D colortex0;
 
-varying vec2 texCoord;
-
 void main() {
-	// Read composited result
-	vec3 color = texture2D(colortex0, texCoord).rgb;
+	vec3 color = texture(colortex0, uv).rgb;
 
-	// Apply gamma correction (linear to sRGB)
-	color = pow(max(color, 0.0), vec3(1.0 / 2.2));
+	// Gamma correction (linear to sRGB)
+	color = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
 
-	// Output to screen
 	gl_FragColor = vec4(color, 1.0);
 }
 

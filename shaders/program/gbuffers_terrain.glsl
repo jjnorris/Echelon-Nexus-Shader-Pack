@@ -1,52 +1,56 @@
-// Minimal Phase 1: Render terrain blocks
-// Iris + Minecraft 1.21.11
+// Echelon Nexus - Phase 1: Render terrain (solid/cutout blocks)
+// Based on Iris pipeline for Minecraft 1.21.11
+// Reference: Photon Shaders gbuffers_all_solid pattern
 
 #ifdef VSH
 
-// Vertex attributes (MC 1.17+)
-attribute vec3 vaPosition;
-attribute vec4 vaColor;
-attribute vec2 vaUV0;
-
-// Uniforms
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferProjection;
-
-// Output
-varying vec2 texCoord;
-varying vec4 vertexColor;
+out vec2 uv;
+out vec2 light_levels;
+out vec4 tint;
 
 void main() {
-	// Transform to screen space
-	gl_Position = gbufferProjection * (gbufferModelView * vec4(vaPosition, 1.0));
+	// Texture coordinates from vertex data
+	uv = gl_MultiTexCoord0.xy;
 
-	// Pass through texture coordinates and vertex color
-	texCoord = vaUV0;
-	vertexColor = vaColor;
+	// Lightmap coordinates (block light, sky light)
+	// gl_MultiTexCoord1 range is 0-240, normalize to 0-1
+	light_levels = gl_MultiTexCoord1.xy / 240.0;
+
+	// Vertex color (biome tint, AO)
+	tint = gl_Color;
+
+	// Transform vertex position: model space -> view space -> clip space
+	gl_Position = gl_ProjectionMatrix * (gl_ModelViewMatrix * gl_Vertex);
 }
 
 #endif
 
 #ifdef FSH
 
-// Sampler
-uniform sampler2D texture;
+in vec2 uv;
+in vec2 light_levels;
+in vec4 tint;
 
-// Input
-varying vec2 texCoord;
-varying vec4 vertexColor;
+// gtexture is the standard sampler name for Iris (MC 1.17+)
+uniform sampler2D gtexture;
+uniform sampler2D lightmap;
 
-/* RENDERTARGETS:0 */
+/* RENDERTARGETS: 0 */
+
+out vec4 fragColor;
 
 void main() {
-	// Sample texture with vertex color tint
-	vec4 color = texture2D(texture, texCoord) * vertexColor;
+	// Sample block texture with biome tint
+	vec4 color = texture(gtexture, uv) * tint;
 
-	// Discard fully transparent pixels
+	// Discard fully transparent fragments
 	if (color.a < 0.1) discard;
 
-	// Output to G-Buffer
-	gl_FragData[0] = color;
+	// Apply vanilla lightmap
+	color *= texture(lightmap, light_levels);
+
+	// Output to colortex0
+	fragColor = color;
 }
 
 #endif

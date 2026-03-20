@@ -1,30 +1,30 @@
-// Minimal Phase 1: Simple composite pass
-// Reads G-Buffer output and passes through with basic lighting
+// Echelon Nexus - Phase 1: Composite pass
+// Simple pass-through for Phase 1
+// Based on Iris pipeline for Minecraft 1.21.11
 
 #ifdef VSH
 
-varying vec2 texCoord;
+out vec2 uv;
 
 void main() {
-	// Simple full-screen quad
-	gl_Position = gl_Vertex;
-	texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
+	gl_Position = gl_ProjectionMatrix * (gl_ModelViewMatrix * gl_Vertex);
+	uv = gl_MultiTexCoord0.xy;
 }
 
 #endif
 
 #ifdef FSH
 
+in vec2 uv;
+
 uniform sampler2D colortex0;
 
-varying vec2 texCoord;
+/* RENDERTARGETS: 0 */
 
-/* RENDERTARGETS:0 */
+out vec4 fragColor;
 
 void main() {
-	// Simply read and pass through G-Buffer
-	vec3 color = texture2D(colortex0, texCoord).rgb;
-	gl_FragData[0] = vec4(color, 1.0);
+	fragColor = texture(colortex0, uv);
 }
 
 #endif
