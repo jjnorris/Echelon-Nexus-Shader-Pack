@@ -15,9 +15,9 @@ varying vec4 vertexColor;
 varying vec3 viewPos;
 
 uniform sampler2D tex;
-uniform sampler2D normals;
-uniform sampler2D specular;
 uniform sampler2D lightmap;
+
+// NOTE: LabPBR samplers not available in Phase 1
 
 /* RENDERTARGETS:0,1,2,3,4 */
 
@@ -32,14 +32,11 @@ void main() {
 	float blockLight = lightData.x;
 	float skyLight = lightData.y;
 
-	// Sample materials (same as terrain)
-	vec4 normalData = texture2D(normals, texCoord);
-	vec4 pbrData = texture2D(specular, texCoord);
-
-	float smoothness = pbrData.r;
-	float metallic = pbrData.g / 255.0;
-	float emissive = pbrData.a / 255.0;
-	float ambientOcclusion = normalData.b;
+	// Phase 1: Basic materials
+	float smoothness = 0.5;
+	float metallic = 0.0;
+	float emissive = 0.0;
+	float ambientOcclusion = 1.0;
 
 	// ===== OUTPUT TO G-BUFFERS =====
 	gl_FragData[0] = vec4(diffuse.rgb * ambientOcclusion, blockLight);

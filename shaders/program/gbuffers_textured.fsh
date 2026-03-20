@@ -17,9 +17,11 @@ varying vec3 viewPos;
 
 // Texture samplers
 uniform sampler2D tex;           // Block texture atlas
-uniform sampler2D normals;       // Normal/specular map (LabPBR)
-uniform sampler2D specular;      // PBR material properties
 uniform sampler2D lightmap;      // Block + sky light
+
+// NOTE: Custom LabPBR samplers (normals, specular) not available in base Minecraft
+// Phase 1 uses basic materials without LabPBR support
+// LabPBR support to be added in future phases with resource pack integration
 
 // G-Buffer render targets
 /* RENDERTARGETS:0,1,2,3,4 */
@@ -47,46 +49,14 @@ void main() {
 	float blockLight = lightData.x;
 	float skyLight = lightData.y;
 
-	// Sample normal map (LabPBR format)
-	// Reference: LabPBR 1.3 specification
-	// https://github.com/rre36/lab-pbr/wiki
-	vec4 normalData = texture2D(normals, texCoord);
+	// Phase 1: Use basic material properties (no LabPBR)
+	// LabPBR support will be added in future phases with proper resource pack integration
 
-	// Decode LabPBR normal
-	// Red, Green = normal XY (DirectX format)
-	// Blue = AO
-	// Alpha = height (for parallax, unused in Phase 1)
-	vec3 decodedNormal = vec3(
-		normalData.r * 2.0 - 1.0,
-		normalData.g * 2.0 - 1.0,
-		0.0
-	);
-
-	// Reconstruct Z from X and Y (since normalized: x² + y² + z² = 1)
-	decodedNormal.z = sqrt(1.0 - dot(decodedNormal.xy, decodedNormal.xy));
-
-	// Transform normal from tangent space to world space
-	// For Phase 1, we'll use simplified approach (no tangent basis)
-	// Reference: Complementary normal handling
-	vec3 worldNormal = normalize(normal);  // Use interpolated normal for now
-
-	// Sample PBR properties
-	vec4 pbrData = texture2D(specular, texCoord);
-
-	// Decode LabPBR specular
-	// Red = smoothness (0-1, 0=rough, 1=mirror)
-	// Green = F0 reflectance / metallic
-	// Blue = porosity / SSS
-	// Alpha = emissive (0-254, 255=skip)
-	float smoothness = pbrData.r;
-	float metallic = pbrData.g / 255.0;
-	float emissive = pbrData.a / 255.0;
-
-	// Convert smoothness to roughness
-	float roughness = 1.0 - smoothness;
-
-	// Ambient Occlusion from normal map blue channel
-	float ambientOcclusion = normalData.b;
+	vec3 worldNormal = normalize(normal);
+	float smoothness = 0.5;        // Default: medium smoothness
+	float metallic = 0.0;          // Default: not metallic
+	float emissive = 0.0;          // Default: not self-emissive
+	float ambientOcclusion = 1.0;  // Default: no ambient occlusion
 
 	// ===== OUTPUT TO G-BUFFERS =====
 

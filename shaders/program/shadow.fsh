@@ -16,7 +16,8 @@ varying vec3 normal;
 varying vec4 color;
 
 uniform sampler2D tex;
-uniform sampler2D normals;
+
+// NOTE: normals sampler unused in shadow pass
 
 // Shadow output configuration
 /* RENDERTARGETS:0,1 */

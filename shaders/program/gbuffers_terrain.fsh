@@ -16,9 +16,10 @@ varying vec4 vertexColor;
 varying vec3 viewPos;
 
 uniform sampler2D tex;
-uniform sampler2D normals;
-uniform sampler2D specular;
 uniform sampler2D lightmap;
+
+// NOTE: LabPBR samplers (normals, specular) not available in Phase 1
+// Using basic material properties for now
 
 /* RENDERTARGETS:0,1,2,3,4 */
 
@@ -36,27 +37,14 @@ void main() {
 	float blockLight = lightData.x;
 	float skyLight = lightData.y;
 
-	// Sample LabPBR materials
-	// Reference: LabPBR 1.3 specification
-	vec4 normalData = texture2D(normals, texCoord);
-	vec4 pbrData = texture2D(specular, texCoord);
+	// Phase 1: Use basic material properties
+	// LabPBR support will be added in future phases
 
-	// Decode LabPBR normal
-	vec3 decodedNormal = vec3(
-		normalData.r * 2.0 - 1.0,
-		normalData.g * 2.0 - 1.0,
-		0.0
-	);
-	decodedNormal.z = sqrt(max(0.0, 1.0 - dot(decodedNormal.xy, decodedNormal.xy)));
 	vec3 worldNormal = normalize(normal);
-
-	// Decode LabPBR specular
-	float smoothness = pbrData.r;
-	float metallic = pbrData.g / 255.0;
-	float emissive = pbrData.a / 255.0;
-
-	// AO from normal map blue channel
-	float ambientOcclusion = normalData.b;
+	float smoothness = 0.5;
+	float metallic = 0.0;
+	float emissive = 0.0;
+	float ambientOcclusion = 1.0;
 
 	// ===== OUTPUT TO G-BUFFERS =====
 
