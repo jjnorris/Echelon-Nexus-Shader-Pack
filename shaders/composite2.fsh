@@ -17,7 +17,7 @@
    Output: colortex5 (shadows applied, ready for Phase 3)
 */
 
-#include "/lib/pcss.glsl"
+#include "/program/pcss.glsl"
 
 uniform sampler2D colortex0;      // G-Buffer color (raw gbuffers output)
 uniform sampler2D colortex1;      // Phase 1 base lighting (from composite.fsh)
