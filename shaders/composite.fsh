@@ -18,6 +18,7 @@ uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
 uniform mat4 shadowProjection;
 uniform mat4 shadowModelView;
+uniform int debugMode; // 0=off,1=depth,2=worldPos,3=shadowCoord,4=shadow value
 
 // Input UV coordinates
 in vec2 uv;
@@ -227,6 +228,32 @@ void main() {
     vec2 shadowCoord = shadowData.xy;
     float shadowDepth = shadowData.z;
 
+    // PCSS parameters (configurable) — declared early to allow debug sampling
+    float lightSize = 0.5;      // Light angular size (0.3-1.0)
+    float searchRadius = 3.0;   // Blocker search radius
+
+    // Debug visualization modes (set `debugMode` uniform):
+    // 0 = off (normal rendering)
+    // 1 = show linear depth
+    // 2 = show world position (RGB)
+    // 3 = show shadow texture coordinates
+    // 4 = show PCSS shadow value (0..1)
+    if (debugMode == 1) {
+        fragColor = vec4(vec3(depth), baseColor.a);
+        return;
+    } else if (debugMode == 2) {
+        vec3 col = normalize(worldPos) * 0.5 + 0.5;
+        fragColor = vec4(col, baseColor.a);
+        return;
+    } else if (debugMode == 3) {
+        fragColor = vec4(vec3(shadowCoord, 0.0), baseColor.a);
+        return;
+    } else if (debugMode == 4) {
+        float debugShadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius);
+        fragColor = vec4(vec3(debugShadow), baseColor.a);
+        return;
+    }
+
     // Check if fragment is within shadow map bounds
     if (shadowCoord.x < 0.0 || shadowCoord.x > 1.0 ||
         shadowCoord.y < 0.0 || shadowCoord.y > 1.0) {
@@ -234,10 +261,6 @@ void main() {
         fragColor = baseColor;
         return;
     }
-
-    // PCSS parameters (configurable)
-    float lightSize = 0.5;      // Light angular size (0.3-1.0)
-    float searchRadius = 3.0;   // Blocker search radius
 
     // Call PCSS algorithm
     float shadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius);
