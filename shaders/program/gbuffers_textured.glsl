@@ -1,54 +1,52 @@
-// Minimal Phase 1: Render textured geometry to G-Buffer
-// Iris Spec: gbuffers_textured renders particles and basic textured geometry
+// Minimal Phase 1: Render textured geometry (particles)
+// Iris + Minecraft 1.21.11
 
 #ifdef VSH
 
+// Vertex attributes (MC 1.17+)
 attribute vec3 vaPosition;
 attribute vec4 vaColor;
 attribute vec2 vaUV0;
-attribute ivec2 vaUV2;
-attribute vec3 vaNormal;
 
+// Uniforms
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferProjection;
-uniform mat3 normalMatrix;
 
+// Output
 varying vec2 texCoord;
-varying vec2 lmCoord;
 varying vec4 vertexColor;
-varying vec3 normal;
 
 void main() {
+	// Transform to screen space
 	gl_Position = gbufferProjection * (gbufferModelView * vec4(vaPosition, 1.0));
 
+	// Pass through texture coordinates and vertex color
 	texCoord = vaUV0;
-	lmCoord = vaUV2 / 256.0;  // Normalize lightmap coords
 	vertexColor = vaColor;
-	normal = normalize(normalMatrix * vaNormal);
 }
 
 #endif
 
 #ifdef FSH
 
+// Sampler
 uniform sampler2D texture;
 
+// Input
 varying vec2 texCoord;
-varying vec2 lmCoord;
 varying vec4 vertexColor;
-varying vec3 normal;
 
 /* RENDERTARGETS:0 */
 
 void main() {
-	// Sample texture and apply vertex color
-	vec4 texColor = texture2D(texture, texCoord) * vertexColor;
+	// Sample texture with vertex color tint
+	vec4 color = texture2D(texture, texCoord) * vertexColor;
 
-	// Discard transparent pixels
-	if (texColor.a < 0.1) discard;
+	// Discard fully transparent pixels
+	if (color.a < 0.1) discard;
 
-	// Output: color with lightmap data
-	gl_FragData[0] = texColor;
+	// Output to G-Buffer
+	gl_FragData[0] = color;
 }
 
 #endif
