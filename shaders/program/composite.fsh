@@ -1,25 +1,34 @@
 // ============================================================================
-// COMPOSITE FRAGMENT SHADER - Phase 1 (DEBUG VERSION)
+// COMPOSITE FRAGMENT SHADER - Phase 1
 // ============================================================================
 //
-// Testing G-Buffer output - simple pass-through of albedo
+// Reference: Shadow Tutorial https://github.com/shaderLABS/Shadow-Tutorial
+// Purpose: Pass-through composite - output G-Buffer albedo with basic lighting
 
 varying vec2 texCoord;
 
-uniform sampler2D gcolor;       // Albedo + AO
+uniform sampler2D gcolor;       // Albedo + block light
 uniform sampler2D gdepth;       // Linear depth
 uniform sampler2D gnormal;      // Normal + smoothness
-uniform sampler2D gaux1;        // Material
+uniform sampler2D gaux1;        // Material properties
+
+/* RENDERTARGETS:0 */
 
 void main() {
-	// DEBUG: Just output the raw G-Buffer color
-	// This will show us if G-Buffer is being populated at all
+	// Phase 1: Simple pass-through composite
+	// Read albedo from G-Buffer
 	vec4 albedo = texture2D(gcolor, texCoord);
 
-	// If G-Buffer is empty, this will be black (0,0,0,0)
-	// If G-Buffer has data, we should see the actual terrain colors
-	gl_FragColor = vec4(albedo.rgb, 1.0);
+	// Read material properties
+	vec4 material = texture2D(gaux1, texCoord);
+	float skyLight = material.b;
 
-	// Amplify slightly to see if there's any data
-	gl_FragColor.rgb *= 2.0;
+	// Basic lighting: albedo * (block light + sky light contribution)
+	vec3 color = albedo.rgb;
+
+	// Add minimal sky lighting (0.5 = 50% brightness from sky)
+	color *= (albedo.a + skyLight * 0.5);
+
+	// Output to screen
+	gl_FragColor = vec4(color, 1.0);
 }
