@@ -19,7 +19,7 @@ uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
 uniform mat4 shadowProjection;
 uniform mat4 shadowModelView;
-int debugMode = 4; // 0=off,1=depth,2=worldPos,3=shadowCoord,4=shadow value
+int debugMode = 9; // 0=off,1=depth,2=worldPos,3=shadowCoord,4=shadow value
 // Toggle to invert sampled shadow-map depth (1=invert, 0=normal)
 int shadowDepthInvert = 0;
 // Small constant bias added to sampled shadow-map depth to avoid self-occlusion
@@ -65,7 +65,7 @@ const vec2 poissonDisk16[16] = vec2[](
  * Stage 1: Blocker Search
  */
 vec3 pcssBlockerSearch(sampler2D shadowMap, vec2 sampleCoord, float receiverDepth,
-                       float searchRadius, int sampleCount) {
+                       float searchRadius, int sampleCount, int invert) {
     float avgBlockerDepth = 0.0;
     float blockerCount = 0.0;
 
@@ -77,7 +77,7 @@ vec3 pcssBlockerSearch(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
         samplePos = clamp(samplePos, vec2(0.0), vec2(1.0));
 
         float sampledDepth = texture(shadowMap, samplePos).x;
-        if (shadowDepthInvert == 1) sampledDepth = 1.0 - sampledDepth;
+        if (invert == 1) sampledDepth = 1.0 - sampledDepth;
         if (sampledDepth + shadowBias < receiverDepth) {
             avgBlockerDepth += sampledDepth;
             blockerCount += 1.0;
@@ -114,7 +114,7 @@ float pcssComputePenumbra(float avgBlockerDepth, float receiverDepth, float ligh
  * Stage 3: Variable-Radius PCF
  */
 float pcssShadowSample(sampler2D shadowMap, vec2 sampleCoord, float receiverDepth,
-                       float filterSize, int sampleCount) {
+                       float filterSize, int sampleCount, int invert) {
     float shadow = 0.0;
 
     if (filterSize < 0.001) {
@@ -135,7 +135,7 @@ float pcssShadowSample(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
         samplePos = clamp(samplePos, vec2(0.0), vec2(1.0));
 
         float sampledDepth = texture(shadowMap, samplePos).x;
-        if (shadowDepthInvert == 1) sampledDepth = 1.0 - sampledDepth;
+        if (invert == 1) sampledDepth = 1.0 - sampledDepth;
         shadow += ((sampledDepth + shadowBias) >= receiverDepth) ? 1.0 : 0.0;
     }
 
@@ -146,10 +146,10 @@ float pcssShadowSample(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
  * Full PCSS Algorithm
  */
 float pcssShadow(sampler2D shadowMap, vec2 sampleCoord, float receiverDepth,
-                 float lightSize, float searchRadius) {
+                 float lightSize, float searchRadius, int invert) {
     // Stage 1: Blocker search
     vec3 blockerInfo = pcssBlockerSearch(shadowMap, sampleCoord, receiverDepth,
-                                          searchRadius, 16);
+                                          searchRadius, 16, invert);
     float avgBlockerDepth = blockerInfo.x;
     float blockerCount = blockerInfo.y;
 
@@ -163,7 +163,7 @@ float pcssShadow(sampler2D shadowMap, vec2 sampleCoord, float receiverDepth,
 
     // Stage 3: PCF filtering
     float shadow = pcssShadowSample(shadowMap, sampleCoord, receiverDepth,
-                                    penumbraSize, 16);
+                                    penumbraSize, 16, invert);
 
     return shadow;
 }
@@ -254,6 +254,16 @@ void main() {
     // Scale the search radius relative to the local UV footprint.
     float searchRadius = max(baseSearchRadius, texelSize * 8.0);
 
+    // Auto-detect shadow-map depth convention per-fragment by sampling the
+    // shadow map at the center and comparing which representation (normal or
+    // inverted) is closer to the computed `shadowDepth`. This avoids a global
+    // toggle mismatch between engines that store depth inverted.
+    vec2 scClamp = clamp(shadowCoord, vec2(0.0), vec2(1.0));
+    float centerSample = texture(shadowtex0, scClamp).x;
+    float normalDiff = abs((centerSample + shadowBias) - shadowDepth);
+    float invDiff = abs(((1.0 - centerSample) + shadowBias) - shadowDepth);
+    int fragInvert = (invDiff < normalDiff) ? 1 : 0;
+
     // Debug visualization modes (set `debugMode` uniform):
     // 0 = off (normal rendering)
     // 1 = show linear depth
@@ -296,7 +306,7 @@ void main() {
         return;
     } else if (debugMode == 8) {
         // Visualize blocker count from a single blocker search (0..1 normalized)
-        vec3 binfo = pcssBlockerSearch(shadowtex0, shadowCoord, shadowDepth, searchRadius, 16);
+        vec3 binfo = pcssBlockerSearch(shadowtex0, shadowCoord, shadowDepth, searchRadius, 16, fragInvert);
         float blockerCount = binfo.y;
         fragColor = vec4(vec3(clamp(blockerCount / 16.0, 0.0, 1.0)), baseColor.a);
         return;
@@ -320,8 +330,8 @@ void main() {
         return;
     }
 
-    // Call PCSS algorithm
-    float shadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius);
+    // Call PCSS algorithm (pass per-fragment invert heuristic)
+    float shadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius, fragInvert);
 
     // Apply shadow to color (50-100% brightness range in shadow)
     vec3 shadowed = baseColor.rgb * (0.5 + shadow * 0.5);
@@ -329,6 +339,9 @@ void main() {
     // Output final color
     fragColor = vec4(shadowed, baseColor.a);
 }
+
+
+
 
 
 

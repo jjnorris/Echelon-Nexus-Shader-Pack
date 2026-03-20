@@ -38,7 +38,7 @@ const vec2 poissonDisk16[16] = vec2[](
 );
 
 vec3 pcssBlockerSearch(sampler2D shadowMap, vec2 sampleCoord, float receiverDepth,
-                       float searchRadius, int sampleCount) {
+                       float searchRadius, int sampleCount, int invert) {
     float avgBlockerDepth = 0.0;
     float blockerCount = 0.0;
 
@@ -50,7 +50,7 @@ vec3 pcssBlockerSearch(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
         samplePos = clamp(samplePos, vec2(0.0), vec2(1.0));
 
         float sampledDepth = texture(shadowMap, samplePos).x;
-        if (shadowDepthInvert == 1) sampledDepth = 1.0 - sampledDepth;
+        if (invert == 1) sampledDepth = 1.0 - sampledDepth;
         if (sampledDepth + shadowBias < receiverDepth) {
             avgBlockerDepth += sampledDepth;
             blockerCount += 1.0;
@@ -81,7 +81,7 @@ float pcssComputePenumbra(float avgBlockerDepth, float receiverDepth, float ligh
 }
 
 float pcssShadowSample(sampler2D shadowMap, vec2 sampleCoord, float receiverDepth,
-                       float filterSize, int sampleCount) {
+                       float filterSize, int sampleCount, int invert) {
     float shadow = 0.0;
 
     if (filterSize < 0.001) {
@@ -102,7 +102,7 @@ float pcssShadowSample(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
         samplePos = clamp(samplePos, vec2(0.0), vec2(1.0));
 
         float sampledDepth = texture(shadowMap, samplePos).x;
-        if (shadowDepthInvert == 1) sampledDepth = 1.0 - sampledDepth;
+        if (invert == 1) sampledDepth = 1.0 - sampledDepth;
         shadow += ((sampledDepth + shadowBias) >= receiverDepth) ? 1.0 : 0.0;
     }
 
@@ -110,9 +110,9 @@ float pcssShadowSample(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
 }
 
 float pcssShadow(sampler2D shadowMap, vec2 sampleCoord, float receiverDepth,
-                 float lightSize, float searchRadius) {
+                 float lightSize, float searchRadius, int invert) {
     vec3 blockerInfo = pcssBlockerSearch(shadowMap, sampleCoord, receiverDepth,
-                                          searchRadius, 16);
+                                          searchRadius, 16, invert);
     float avgBlockerDepth = blockerInfo.x;
     float blockerCount = blockerInfo.y;
 
@@ -124,7 +124,7 @@ float pcssShadow(sampler2D shadowMap, vec2 sampleCoord, float receiverDepth,
     penumbraSize = clamp(penumbraSize, 0.0, 0.1);
 
     float shadow = pcssShadowSample(shadowMap, sampleCoord, receiverDepth,
-                                    penumbraSize, 32);
+                                    penumbraSize, 32, invert);
 
     return shadow;
 }
@@ -162,8 +162,15 @@ void main() {
     texelSize = max(texelSize, 1e-5);
     float searchRadius = max(baseSearchRadius, texelSize * 8.0);
 
+    // Auto-detect shadow-map depth convention per-fragment
+    vec2 scClamp = clamp(shadowCoord, vec2(0.0), vec2(1.0));
+    float centerSample = texture(shadowtex0, scClamp).x;
+    float normalDiff = abs((centerSample + shadowBias) - shadowDepth);
+    float invDiff = abs(((1.0 - centerSample) + shadowBias) - shadowDepth);
+    int fragInvert = (invDiff < normalDiff) ? 1 : 0;
+
     if (debugMode == 4) {
-        float debugShadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius);
+        float debugShadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius, fragInvert);
         fragColor = vec4(vec3(debugShadow), baseColor.a);
         return;
     }
@@ -172,7 +179,7 @@ void main() {
         fragColor = baseColor; return;
     }
 
-    float shadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius);
+    float shadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius, fragInvert);
     vec3 shadowed = baseColor.rgb * (0.5 + shadow * 0.5);
     fragColor = vec4(shadowed, baseColor.a);
 }
