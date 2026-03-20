@@ -1,14 +1,8 @@
 #version 130
 
-// COMPOSITE2 FRAGMENT SHADER - Phase 3: Quantum-Inspired Sampling
+// COMPOSITE2 FRAGMENT SHADER - Phase 3: Temporal Anti-Aliasing
 //
-// Reference:
-// - Complementary Shaders: https://github.com/ComplementaryDevelopment/ComplementaryShadersV4
-// - Photon Shaders: https://github.com/sixthsurge/photon
-// - Quantum-inspired sampling concepts
-//
-// Purpose: Temporal anti-aliasing with quantum superposition and adaptive quality
+// Reference: Karis 2014, SIGGRAPH
+// Purpose: Temporal anti-aliasing to reduce noise and eliminate aliasing
 
-#define OVERWORLD
-#define FSH
-#include "/program/composite2.glsl"
+#include "/program/composite2.fsh"

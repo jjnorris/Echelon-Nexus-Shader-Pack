@@ -1,5 +1,5 @@
 // ============================================================================
-// COMPOSITE2 SHADER - Phase 3: Temporal Anti-Aliasing
+// COMPOSITE2 FRAGMENT SHADER - Phase 3: Temporal Anti-Aliasing
 // ============================================================================
 //
 // References:
@@ -8,41 +8,13 @@
 // - Photon Shaders: https://github.com/sixthsurge/photon
 //
 // Purpose: Temporal anti-aliasing to eliminate aliasing and reduce noise
-// Input: composite1 output, colortex7 (temporal history)
+// Input: composite (previous pass output), colortex7 (temporal history)
 // Output: TAA-processed scene
 //
 // NOTE: This pass has LIMITED access. G-Buffer is NOT guaranteed available.
-// Only read from:
-// - composite (previous pass output)
-// - colortex7, colortex8 (temporal history buffers)
-// - frameCounter (frame number)
-
-#ifndef INCLUDED_COMPOSITE2
-#define INCLUDED_COMPOSITE2
 
 #include "/lib/sampling.glsl"
 #include "/lib/math.glsl"
-
-// ============================================================================
-// VERTEX SHADER
-// ============================================================================
-
-#ifdef VSH
-
-varying vec2 texCoord;
-
-void main() {
-	gl_Position = ftransform();
-	texCoord = gl_MultiTexCoord0.xy;
-}
-
-#endif // VSH
-
-// ============================================================================
-// FRAGMENT SHADER
-// ============================================================================
-
-#ifdef FSH
 
 varying vec2 texCoord;
 
@@ -94,7 +66,3 @@ void main() {
 	gl_FragData[0] = vec4(taaColor, 1.0);    // Draw to colortex0 (screen)
 	gl_FragData[7] = currentColor;            // Store current for next frame history
 }
-
-#endif // FSH
-
-#endif // INCLUDED_COMPOSITE2
