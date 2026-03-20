@@ -1,5 +1,6 @@
 ﻿#version 130
 precision highp float;
+// Saved without BOM to avoid GLSL preprocessor errors
 // Phase 2 PCSS integration completed: reconstructWorldPosition, projectToShadowSpace, PCSS usage.
 // Integrated per user request; ready for in-game testing.
 
