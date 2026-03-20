@@ -50,7 +50,7 @@ uniform mat4 gbufferPreviousProjection;
 
 // Temporal uniforms
 uniform int frameCounter;           // Current frame number for temporal coherence
-uniform vec2 screenSize;            // Screen resolution
+uniform ivec2 screenSize;           // Screen resolution (provided by Iris)
 
 // ============================================================================
 // QUANTUM-INSPIRED SAMPLING CONSTANTS
@@ -188,7 +188,7 @@ vec3 temporallyCoherentSample(vec2 coord) {
 	// Determine pixel group based on coherence radius
 	// Nearby pixels (within coherence radius) use similar sampling patterns
 	// This reduces overall sample divergence and improves cache coherence
-	vec2 groupID = floor(coord * screenSize / COHERENCE_RADIUS);
+	vec2 groupID = floor(coord * vec2(screenSize) / COHERENCE_RADIUS);
 
 	// Hash group ID for deterministic but varied group patterns
 	float groupSeed = fract(sin(dot(groupID, vec2(12.9898, 78.233))) * 43758.5453);
@@ -196,7 +196,7 @@ vec3 temporallyCoherentSample(vec2 coord) {
 	// Apply group-level variation (all pixels in group get same temporal offset seed)
 	// This creates coherent sample patterns within the group
 	for (int i = 0; i < COHERENCE_GROUP_SIZE; i++) {
-		vec2 groupOffset = poissonDiskSample(i, COHERENCE_GROUP_SIZE) * COHERENCE_RADIUS / screenSize;
+		vec2 groupOffset = poissonDiskSample(i, COHERENCE_GROUP_SIZE) * COHERENCE_RADIUS / vec2(screenSize);
 		vec3 neighborColor = texture2D(composite, coord + groupOffset).rgb;
 		coherentColor += neighborColor;
 	}
