@@ -1,5 +1,3 @@
 #version 130
 
-#define OVERWORLD
-#define FSH
-#include "/program/gbuffers_water.glsl"
+#include "/program/gbuffers_water.fsh"

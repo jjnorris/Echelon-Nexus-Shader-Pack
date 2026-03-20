@@ -6,6 +6,4 @@
 //
 // Purpose: Render rain and snow particles
 
-#define OVERWORLD
-#define VSH
-#include "/program/gbuffers_weather.glsl"
+#include "/program/gbuffers_weather.vsh"

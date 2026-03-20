@@ -10,6 +10,4 @@
 // Renders world from sun perspective to create shadowtex0/shadowtex1 depth maps
 
 // Include directive structure
-#define OVERWORLD
-#define VSH
-#include "/program/shadow.glsl"
+#include "/program/shadow.vsh"

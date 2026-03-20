@@ -9,13 +9,4 @@
 // Purpose: Simple full-screen quad for post-processing passes
 // Applies shadows and lighting to G-Buffer data
 
-varying vec2 texCoord;
-
-void main() {
-	// Simple full-screen quad vertex
-	// Maps screen coordinates directly
-	gl_Position = gl_Vertex;
-
-	// Texture coordinate from input (typically 0-1)
-	texCoord = gl_MultiTexCoord0.xy;
-}
+#include "/program/composite.vsh"

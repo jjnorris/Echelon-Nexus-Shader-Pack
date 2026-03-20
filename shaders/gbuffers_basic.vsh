@@ -9,6 +9,4 @@
 // Purpose: Simple geometry (sky lines, beacon beams, etc)
 // No normal mapping or complex materials required
 
-#define OVERWORLD
-#define VSH
-#include "/program/gbuffers_basic.glsl"
+#include "/program/gbuffers_basic.vsh"

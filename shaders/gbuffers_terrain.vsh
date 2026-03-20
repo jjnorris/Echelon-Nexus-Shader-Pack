@@ -9,6 +9,4 @@
 // Purpose: Render terrain blocks with full material properties and lighting
 // Supports normal maps, PBR materials, and displacement
 
-#define OVERWORLD
-#define VSH
-#include "/program/gbuffers_terrain.glsl"
+#include "/program/gbuffers_terrain.vsh"

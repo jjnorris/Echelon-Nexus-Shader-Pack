@@ -9,6 +9,4 @@
 // Purpose: Render textured geometry to G-Buffer for deferred lighting
 // Outputs: Albedo, Depth, Normal, Material properties
 
-#define OVERWORLD
-#define FSH
-#include "/program/gbuffers_textured.glsl"
+#include "/program/gbuffers_textured.fsh"

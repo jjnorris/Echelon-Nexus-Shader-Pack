@@ -9,6 +9,4 @@
 // Purpose: Render shadow color data and depth from sun perspective
 // Outputs shadowcolor0 (depth map) and shadowcolor1 (colored shadow data)
 
-#define OVERWORLD
-#define FSH
-#include "/program/shadow.glsl"
+#include "/program/shadow.fsh"

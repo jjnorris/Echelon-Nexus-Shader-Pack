@@ -1,6 +1,6 @@
 // ============================================================================
-// COMPOSITE SHADER - Phase 1 Foundation
-// Shadow Application & Basic Lighting
+// COMPOSITE FRAGMENT SHADER
+// Phase 1 Foundation - Shadow Application & Basic Lighting
 // ============================================================================
 //
 // References:
@@ -11,11 +11,6 @@
 // Purpose: Apply shadows and basic lighting to deferred G-Buffer
 // Reads from: shadowtex0, shadowtex1, gcolor, gdepth, gnormal, gaux1
 // Outputs to: Screen
-
-// ============================================================================
-// FRAGMENT SHADER SECTION
-// ============================================================================
-#ifdef FSH
 
 varying vec2 texCoord;
 
@@ -179,5 +174,3 @@ void main() {
 	// Reference: OptiFine final output specification
 	gl_FragColor = vec4(finalColor, 1.0);
 }
-
-#endif // FSH

@@ -6,6 +6,4 @@
 //
 // Purpose: Render water surfaces with wave animation and refraction
 
-#define OVERWORLD
-#define VSH
-#include "/program/gbuffers_water.glsl"
+#include "/program/gbuffers_water.vsh"

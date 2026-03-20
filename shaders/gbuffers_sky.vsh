@@ -6,6 +6,4 @@
 //
 // Purpose: Render sky dome
 
-#define OVERWORLD
-#define VSH
-#include "/program/gbuffers_sky.glsl"
+#include "/program/gbuffers_sky.vsh"

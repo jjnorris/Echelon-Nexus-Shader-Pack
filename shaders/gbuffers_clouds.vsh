@@ -6,6 +6,4 @@
 //
 // Purpose: Render clouds
 
-#define OVERWORLD
-#define VSH
-#include "/program/gbuffers_clouds.glsl"
+#include "/program/gbuffers_clouds.vsh"

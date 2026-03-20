@@ -6,6 +6,4 @@
 //
 // Purpose: First-person hand and held items
 
-#define OVERWORLD
-#define VSH
-#include "/program/gbuffers_hand.glsl"
+#include "/program/gbuffers_hand.vsh"

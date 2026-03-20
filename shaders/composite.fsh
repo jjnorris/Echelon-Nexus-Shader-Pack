@@ -9,6 +9,4 @@
 // Purpose: Apply shadows and basic lighting to G-Buffer
 // This is the main lighting pass that brings the scene to life
 
-#define OVERWORLD
-#define FSH
-#include "/program/composite.glsl"
+#include "/program/composite.fsh"

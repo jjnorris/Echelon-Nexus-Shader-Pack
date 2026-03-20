@@ -1,5 +1,5 @@
 // ============================================================================
-// FINAL SHADER IMPLEMENTATION
+// FINAL FRAGMENT SHADER
 // Phase 1: Foundation - Tonemapping & Screen Output
 // ============================================================================
 //
@@ -9,11 +9,6 @@
 //
 // Purpose: Apply tonemapping, color grading, and output final frame to screen
 // This is the last shader that runs before displaying the rendered frame
-
-// ============================================================================
-// FRAGMENT SHADER SECTION
-// ============================================================================
-#ifdef FSH
 
 varying vec2 texCoord;
 
@@ -65,5 +60,3 @@ void main() {
 	// ===== OUTPUT TO SCREEN =====
 	gl_FragColor = vec4(color, 1.0);
 }
-
-#endif // FSH

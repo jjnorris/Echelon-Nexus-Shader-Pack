@@ -9,6 +9,4 @@
 // Purpose: G-Buffer pass for textured geometry (blocks, entities)
 // Renders material properties and depth for deferred lighting
 
-#define OVERWORLD
-#define VSH
-#include "/program/gbuffers_textured.glsl"
+#include "/program/gbuffers_textured.vsh"

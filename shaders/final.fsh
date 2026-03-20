@@ -6,6 +6,4 @@
 //
 // Purpose: Final tonemapping and screen output
 
-#define OVERWORLD
-#define FSH
-#include "/program/final.glsl"
+#include "/program/final.fsh"

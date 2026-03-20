@@ -6,6 +6,4 @@
 //
 // Purpose: Render mobs and other entities with materials
 
-#define OVERWORLD
-#define VSH
-#include "/program/gbuffers_entities.glsl"
+#include "/program/gbuffers_entities.vsh"

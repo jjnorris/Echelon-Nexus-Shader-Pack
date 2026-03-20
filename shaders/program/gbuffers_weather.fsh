@@ -8,35 +8,6 @@
 // - Photon Shaders: https://github.com/sixthsurge/photon
 //
 // Purpose: Render weather particles (rain, snow)
-
-// ============================================================================
-// VERTEX SHADER SECTION
-// ============================================================================
-#ifdef VSH
-
-in vec3 vaPosition;
-in vec4 vaColor;
-in vec2 vaUV0;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferProjection;
-
-varying vec4 vertexColor;
-varying vec2 texCoord;
-
-void main() {
-	gl_Position = gbufferProjection * (gbufferModelView * vec4(vaPosition, 1.0));
-	vertexColor = vaColor;
-	texCoord = vaUV0;
-}
-
-#endif // VSH
-
-// ============================================================================
-// FRAGMENT SHADER SECTION
-// ============================================================================
-#ifdef FSH
-
 varying vec4 vertexColor;
 varying vec2 texCoord;
 
@@ -63,5 +34,3 @@ void main() {
 	gl_FragData[4] = vec4(0.0, 0.0, 0.5, 1.0);
 	gl_FragData[3] = vec4(0.0);
 }
-
-#endif // FSH

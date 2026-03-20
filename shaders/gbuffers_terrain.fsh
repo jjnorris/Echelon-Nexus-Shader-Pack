@@ -1,5 +1,3 @@
 #version 130
 
-#define OVERWORLD
-#define FSH
-#include "/program/gbuffers_terrain.glsl"
+#include "/program/gbuffers_terrain.fsh"

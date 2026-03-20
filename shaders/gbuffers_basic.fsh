@@ -6,6 +6,4 @@
 //
 // Renders simple geometry to G-Buffer
 
-#define OVERWORLD
-#define FSH
-#include "/program/gbuffers_basic.glsl"
+#include "/program/gbuffers_basic.fsh"
