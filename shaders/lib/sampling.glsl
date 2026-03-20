@@ -37,16 +37,9 @@ float vanderCorput(int index) {
 }
 
 // ============================================================================
-// HALTON SEQUENCE
+// HALTON BASE 3
 // ============================================================================
-// 2D low-discrepancy sequence (base 2, 3)
-
-vec2 halton(int index) {
-	return vec2(
-		vanderCorput(index),           // Base 2
-		haltonBase3(index)             // Base 3
-	);
-}
+// Base 3 component of Halton sequence
 
 float haltonBase3(int index) {
 	float vdc = 0.0;
@@ -60,6 +53,18 @@ float haltonBase3(int index) {
 	}
 
 	return vdc;
+}
+
+// ============================================================================
+// HALTON SEQUENCE
+// ============================================================================
+// 2D low-discrepancy sequence (base 2, 3)
+
+vec2 halton(int index) {
+	return vec2(
+		vanderCorput(index),           // Base 2
+		haltonBase3(index)             // Base 3
+	);
 }
 
 // ============================================================================
