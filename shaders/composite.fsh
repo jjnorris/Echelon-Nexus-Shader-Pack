@@ -1,4 +1,4 @@
-#version 130
+﻿#version 130
 precision highp float;
 // Phase 2 PCSS integration completed: reconstructWorldPosition, projectToShadowSpace, PCSS usage.
 // Integrated per user request; ready for in-game testing.
@@ -18,7 +18,7 @@ uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
 uniform mat4 shadowProjection;
 uniform mat4 shadowModelView;
-int debugMode = 7; // 0=off,1=depth,2=worldPos,3=shadowCoord,4=shadow value
+int debugMode = 4; // 0=off,1=depth,2=worldPos,3=shadowCoord,4=shadow value
 // Toggle to invert sampled shadow-map depth (1=invert, 0=normal)
 int shadowDepthInvert = 1;
 // Small constant bias added to sampled shadow-map depth to avoid self-occlusion
@@ -235,7 +235,7 @@ void main() {
     vec2 shadowCoord = shadowData.xy;
     float shadowDepth = shadowData.z;
 
-    // PCSS parameters (configurable) — declared early to allow debug sampling
+    // PCSS parameters (configurable) â€” declared early to allow debug sampling
     // Reduced defaults and derivative-based search radius to use normalized
     // shadow-map UV units instead of large absolute offsets that sampled
     // outside the shadow map and produced fully-lit results.
@@ -328,6 +328,12 @@ void main() {
     // Output final color
     fragColor = vec4(shadowed, baseColor.a);
 }
+
+
+
+
+
+
 
 
 
