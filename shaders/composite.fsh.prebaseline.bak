@@ -300,9 +300,8 @@ void main() {
         return;
     }
 
-    // Baseline measurement: force fully-lit (shadow=1.0) so operator can measure baseline frametime.
-    // Revert this change after recording Baseline_ms.
-    float shadow = 1.0; // FOR_MEASUREMENT_BASELINE
+    // Call PCSS algorithm
+    float shadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius);
 
     // Apply shadow to color (50-100% brightness range in shadow)
     vec3 shadowed = baseColor.rgb * (0.5 + shadow * 0.5);
