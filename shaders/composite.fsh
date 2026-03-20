@@ -18,7 +18,7 @@ uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
 uniform mat4 shadowProjection;
 uniform mat4 shadowModelView;
-uniform int debugMode; // 0=off,1=depth,2=worldPos,3=shadowCoord,4=shadow value
+int debugMode = 4; // 0=off,1=depth,2=worldPos,3=shadowCoord,4=shadow value
 
 // Input UV coordinates
 in vec2 uv;
