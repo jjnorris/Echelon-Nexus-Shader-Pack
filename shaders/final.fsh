@@ -1,7 +1,4 @@
 #version 130
 
-#define FRAGMENT_SHADER
-#define OVERWORLD
-#define FINAL
-
+#define FSH
 #include "/program/final.glsl"

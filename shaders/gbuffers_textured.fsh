@@ -1,7 +1,4 @@
 #version 130
 
-#define FRAGMENT_SHADER
-#define OVERWORLD
-#define GBUFFERS_TEXTURED
-
+#define FSH
 #include "/program/gbuffers_textured.glsl"

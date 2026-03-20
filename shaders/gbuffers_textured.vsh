@@ -1,7 +1,4 @@
 #version 130
 
-#define VERTEX_SHADER
-#define OVERWORLD
-#define GBUFFERS_TEXTURED
-
+#define VSH
 #include "/program/gbuffers_textured.glsl"
