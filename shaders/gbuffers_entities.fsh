@@ -1,3 +1,7 @@
-#version 130
+#version 130 
 
-#include "/program/gbuffers_entities.fsh"
+#define GBUFFERS_ENTITIES
+#define OVERWORLD
+#define FSH
+
+#include "/program/gbuffers_entities.glsl"

@@ -1,3 +1,7 @@
-#version 130
+#version 130 
 
-#include "/program/gbuffers_hand.fsh"
+#define GBUFFERS_HAND
+#define OVERWORLD
+#define FSH
+
+#include "/program/gbuffers_hand.glsl"
