@@ -1,12 +1,9 @@
 #version 130
 
-// COMPOSITE1 FRAGMENT SHADER - Phase 2: PCSS Shadows
+// COMPOSITE1 FRAGMENT SHADER - Phase 2: Post-Processing Effects
 //
-// Reference:
-// - Complementary Shaders: https://github.com/ComplementaryDevelopment/ComplementaryShadersV4
-// - Photon Shaders: https://github.com/sixthsurge/photon
-//
-// Purpose: Percentage-Closer Soft Shadows with blocker search and penumbra estimation
+// Reference: Complementary Shaders V4, Photon Shaders
+// Purpose: Post-processing effects, bloom, tone mapping, effects layers
 
 #define OVERWORLD
 #define FSH
