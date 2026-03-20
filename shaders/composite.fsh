@@ -18,7 +18,10 @@ uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
 uniform mat4 shadowProjection;
 uniform mat4 shadowModelView;
-int debugMode = 4; // 0=off,1=depth,2=worldPos,3=shadowCoord,4=shadow value
+int debugMode = 7; // 0=off,1=depth,2=worldPos,3=shadowCoord,4=shadow value
+// Small constant bias added to sampled shadow-map depth to avoid self-occlusion
+// and reduce false-positive blockers caused by precision/format mismatches.
+float shadowBias = 0.002;
 
 // Input UV coordinates
 in vec2 uv;
@@ -71,7 +74,7 @@ vec3 pcssBlockerSearch(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
         samplePos = clamp(samplePos, vec2(0.0), vec2(1.0));
 
         float sampledDepth = texture(shadowMap, samplePos).x;
-        if (sampledDepth < receiverDepth) {
+        if (sampledDepth + shadowBias < receiverDepth) {
             avgBlockerDepth += sampledDepth;
             blockerCount += 1.0;
         }
@@ -128,7 +131,7 @@ float pcssShadowSample(sampler2D shadowMap, vec2 sampleCoord, float receiverDept
         samplePos = clamp(samplePos, vec2(0.0), vec2(1.0));
 
         float sampledDepth = texture(shadowMap, samplePos).x;
-        shadow += (sampledDepth >= receiverDepth) ? 1.0 : 0.0;
+        shadow += ((sampledDepth + shadowBias) >= receiverDepth) ? 1.0 : 0.0;
     }
 
     return shadow / float(sampleCount);
@@ -274,13 +277,15 @@ void main() {
         // Visualize sampled depth value from the shadow map at this coord
         vec2 sc = clamp(shadowCoord, vec2(0.0), vec2(1.0));
         float sampledDepth = texture(shadowtex0, sc).x;
-        fragColor = vec4(vec3(sampledDepth), baseColor.a);
+        // Show sampled depth and also visualize the bias-adjusted sampled depth if helpful
+        float adj = clamp(sampledDepth + shadowBias, 0.0, 1.0);
+        fragColor = vec4(vec3(adj), baseColor.a);
         return;
     } else if (debugMode == 7) {
         // Visualize difference (receiverDepth - sampledDepth) -> positive = occluder
         vec2 sc = clamp(shadowCoord, vec2(0.0), vec2(1.0));
         float sampledDepth = texture(shadowtex0, sc).x;
-        float diff = shadowDepth - sampledDepth;
+        float diff = shadowDepth - (sampledDepth + shadowBias);
         diff = clamp(diff * 10.0, 0.0, 1.0); // scale for visibility
         fragColor = vec4(vec3(diff), baseColor.a);
         return;
@@ -300,9 +305,8 @@ void main() {
         return;
     }
 
-    // Baseline measurement: force fully-lit (shadow=1.0) so operator can measure baseline frametime.
-    // Revert this change after recording Baseline_ms.
-    float shadow = 1.0; // FOR_MEASUREMENT_BASELINE
+    // Call PCSS algorithm
+    float shadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius);
 
     // Apply shadow to color (50-100% brightness range in shadow)
     vec3 shadowed = baseColor.rgb * (0.5 + shadow * 0.5);
@@ -310,3 +314,6 @@ void main() {
     // Output final color
     fragColor = vec4(shadowed, baseColor.a);
 }
+
+
+
