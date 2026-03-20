@@ -252,6 +252,30 @@ void main() {
         float debugShadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius);
         fragColor = vec4(vec3(debugShadow), baseColor.a);
         return;
+    } else if (debugMode == 5) {
+        // Visualize computed shadow depth in shadow projection space
+        fragColor = vec4(vec3(shadowDepth), baseColor.a);
+        return;
+    } else if (debugMode == 6) {
+        // Visualize sampled depth value from the shadow map at this coord
+        vec2 sc = clamp(shadowCoord, vec2(0.0), vec2(1.0));
+        float sampledDepth = texture(shadowtex0, sc).x;
+        fragColor = vec4(vec3(sampledDepth), baseColor.a);
+        return;
+    } else if (debugMode == 7) {
+        // Visualize difference (receiverDepth - sampledDepth) -> positive = occluder
+        vec2 sc = clamp(shadowCoord, vec2(0.0), vec2(1.0));
+        float sampledDepth = texture(shadowtex0, sc).x;
+        float diff = shadowDepth - sampledDepth;
+        diff = clamp(diff * 10.0, 0.0, 1.0); // scale for visibility
+        fragColor = vec4(vec3(diff), baseColor.a);
+        return;
+    } else if (debugMode == 8) {
+        // Visualize blocker count from a single blocker search (0..1 normalized)
+        vec3 binfo = pcssBlockerSearch(shadowtex0, shadowCoord, shadowDepth, searchRadius, 16);
+        float blockerCount = binfo.y;
+        fragColor = vec4(vec3(clamp(blockerCount / 16.0, 0.0, 1.0)), baseColor.a);
+        return;
     }
 
     // Check if fragment is within shadow map bounds
