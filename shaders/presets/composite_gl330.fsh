@@ -167,7 +167,10 @@ void main() {
     float centerSample = texture(shadowtex0, scClamp).x;
     float normalDiff = abs((centerSample + shadowBias) - shadowDepth);
     float invDiff = abs(((1.0 - centerSample) + shadowBias) - shadowDepth);
+    // Test override: set to -1 to keep auto-detection, 0 to force normal, 1 to force inverted.
+    int forceFragInvert = -1;
     int fragInvert = (invDiff < normalDiff) ? 1 : 0;
+    if (forceFragInvert >= 0) fragInvert = forceFragInvert;
 
     if (debugMode == 4) {
         float debugShadow = pcssShadow(shadowtex0, shadowCoord, shadowDepth, lightSize, searchRadius, fragInvert);
