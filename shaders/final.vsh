@@ -1,7 +1,5 @@
 #version 400 compatibility
 
-uniform sampler2D colortex0;
-
 out vec2 uv;
 
 void main() {
